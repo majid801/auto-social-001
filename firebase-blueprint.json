@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "timezone": { "type": "string", "maxLength": 64 },
+        "autoPublishApproved": { "type": "boolean" },
+        "theme": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "email"]
+    },
+    "InstagramAccount": {
+      "title": "InstagramAccount",
+      "description": "Connected Instagram account state retrieved via Publora",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "accountId": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 128 },
+        "profilePictureUrl": { "type": "string", "maxLength": 1024 },
+        "connectionStatus": { "type": "string", "maxLength": 64 },
+        "tokenStatus": { "type": "string", "maxLength": 64 },
+        "publishingCapabilities": { "type": "string", "maxLength": 256 },
+        "planInfo": { "type": "string", "maxLength": 256 },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "username"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Instagram posts, reels, stories, drafts, and scheduled items",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "topic": { "type": "string", "maxLength": 512 },
+        "format": { "type": "string", "enum": ["reel", "post", "carousel", "story", "video"] },
+        "status": { "type": "string", "enum": ["draft", "awaiting_approval", "approved", "scheduled", "published", "failed"] },
+        "caption": { "type": "string", "maxLength": 4000 },
+        "hashtags": { "type": "string", "maxLength": 1000 },
+        "hook": { "type": "string", "maxLength": 1000 },
+        "cta": { "type": "string", "maxLength": 500 },
+        "script": { "type": "string", "maxLength": 10000 },
+        "scenes": { "type": "string", "maxLength": 10000 },
+        "visualStyle": { "type": "string", "maxLength": 1000 },
+        "voiceover": { "type": "string", "maxLength": 5000 },
+        "musicDescription": { "type": "string", "maxLength": 500 },
+        "suggestedDuration": { "type": "string", "maxLength": 64 },
+        "suggestedPostingTime": { "type": "string", "maxLength": 128 },
+        "mediaUrl": { "type": "string", "maxLength": 2048 },
+        "mediaType": { "type": "string", "maxLength": 64 },
+        "scheduledTime": { "type": "string", "maxLength": 64 },
+        "publishedTime": { "type": "string", "maxLength": 64 },
+        "publoraPostId": { "type": "string", "maxLength": 128 },
+        "publoraStatus": { "type": "string", "maxLength": 64 },
+        "failureReason": { "type": "string", "maxLength": 2048 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "title", "format", "status"]
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "Media library assets including images and videos",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 256 },
+        "url": { "type": "string", "maxLength": 2048 },
+        "mediaType": { "type": "string", "maxLength": 64 },
+        "sizeBytes": { "type": "number" },
+        "dimensions": { "type": "string", "maxLength": 64 },
+        "source": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "name", "url", "mediaType"]
+    },
+    "AutomationRule": {
+      "title": "AutomationRule",
+      "description": "Scheduled automation jobs for content and publishing",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 512 },
+        "triggerType": { "type": "string", "maxLength": 64 },
+        "frequency": { "type": "string", "maxLength": 64 },
+        "category": { "type": "string", "maxLength": 128 },
+        "timeOfDay": { "type": "string", "maxLength": 32 },
+        "timezone": { "type": "string", "maxLength": 64 },
+        "isEnabled": { "type": "boolean" },
+        "lastExecutionTime": { "type": "string", "maxLength": 64 },
+        "nextExecutionTime": { "type": "string", "maxLength": 64 },
+        "executionCount": { "type": "number" },
+        "lastResult": { "type": "string", "maxLength": 512 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "name", "triggerType", "frequency"]
+    },
+    "AutomationLog": {
+      "title": "AutomationLog",
+      "description": "History of automation workflow runs",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "automationId": { "type": "string", "maxLength": 128 },
+        "automationName": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "maxLength": 64 },
+        "summary": { "type": "string", "maxLength": 1024 },
+        "details": { "type": "string", "maxLength": 4000 },
+        "executionTime": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "automationId", "status", "executionTime"]
+    },
+    "BrandCampaign": {
+      "title": "BrandCampaign",
+      "description": "Monetization and sponsorship tracker records",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "brandName": { "type": "string", "maxLength": 128 },
+        "dealAmount": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 16 },
+        "status": { "type": "string", "maxLength": 64 },
+        "paymentStatus": { "type": "string", "maxLength": 64 },
+        "deliverables": { "type": "string", "maxLength": 2048 },
+        "associatedPostIds": { "type": "string", "maxLength": 1024 },
+        "notes": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "brandName", "status"]
+    },
+    "SkillRun": {
+      "title": "SkillRun",
+      "description": "Execution history of Instagram Agent Skills",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "skillId": { "type": "string", "maxLength": 64 },
+        "skillName": { "type": "string", "maxLength": 128 },
+        "inputParams": { "type": "string", "maxLength": 4000 },
+        "resultOutput": { "type": "string", "maxLength": 10000 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "skillId", "resultOutput"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile and preferences"
+    },
+    "/instagramAccounts/{accountId}": {
+      "schema": "InstagramAccount",
+      "description": "Connected Instagram accounts by user"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Instagram posts, drafts, and scheduled publications"
+    },
+    "/media/{mediaId}": {
+      "schema": "MediaItem",
+      "description": "User uploaded and AI-generated media"
+    },
+    "/automations/{automationId}": {
+      "schema": "AutomationRule",
+      "description": "Automated workflow schedules"
+    },
+    "/automationLogs/{logId}": {
+      "schema": "AutomationLog",
+      "description": "Logs of automation executions"
+    },
+    "/brandCampaigns/{campaignId}": {
+      "schema": "BrandCampaign",
+      "description": "Brand sponsorship and monetization deals"
+    },
+    "/skillRuns/{runId}": {
+      "schema": "SkillRun",
+      "description": "Agent skill run records"
+    }
+  }
+}

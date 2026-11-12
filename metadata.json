@@ -1,0 +1,6 @@
+{
+  "name": "AutoSocial AI",
+  "description": "Professional Instagram-Only AI Social Media Automation & Publishing Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
