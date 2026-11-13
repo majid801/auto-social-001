@@ -20,95 +20,95 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isValidId(userId) && isOwner(userId);
       allow list: if false;
-      allow create, update: if isOwner(userId)
+      allow create, update: if isValidId(userId) && isOwner(userId)
         && request.resource.data.userId == userId;
-      allow delete: if isOwner(userId);
+      allow delete: if isValidId(userId) && isOwner(userId);
     }
 
     // Connected Instagram accounts
     match /instagramAccounts/{accountId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(accountId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(accountId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(accountId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(accountId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Instagram posts, reels, stories, drafts, scheduled items
     match /posts/{postId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(postId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(postId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(postId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(postId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Media library assets
     match /media/{mediaId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(mediaId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(mediaId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(mediaId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(mediaId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Automation rules
     match /automations/{automationId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(automationId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(automationId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(automationId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(automationId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Automation execution logs
     match /automationLogs/{logId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(logId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(logId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(logId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(logId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Brand campaigns and monetization
     match /brandCampaigns/{campaignId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(campaignId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(campaignId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(campaignId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(campaignId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Agent skill runs
     match /skillRuns/{runId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isValidId(runId) && isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
+      allow create: if isValidId(runId) && isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn()
+      allow update: if isValidId(runId) && isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isValidId(runId) && isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

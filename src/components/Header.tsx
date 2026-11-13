@@ -1,11 +1,12 @@
 import React from 'react';
-import { Menu, Sparkles, Instagram, Key, RefreshCw } from 'lucide-react';
+import { Menu, Sparkles, Instagram, Key, RefreshCw, Search } from 'lucide-react';
 import { NavTab } from './Sidebar';
 
 interface HeaderProps {
   currentTab: NavTab;
   onOpenMobileSidebar: () => void;
   onQuickCreate: () => void;
+  onOpenCommandCentre: () => void;
   isPubloraConnected: boolean;
   onRefreshPublora: () => void;
   isRefreshingPublora: boolean;
@@ -13,38 +14,106 @@ interface HeaderProps {
 }
 
 const TAB_TITLES: Record<NavTab, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Overview of your Instagram automation pipeline & activity' },
-  accounts: { title: 'Instagram Account', subtitle: 'Real connected Instagram profile via Publora API' },
-  'content-studio': { title: 'AI Content Studio', subtitle: 'Generate high-converting Reels, posts, carousels, and stories with Gemini' },
-  'image-generator': { title: 'AI Image Generator', subtitle: 'Create aesthetic Instagram-optimized graphics and backgrounds' },
-  'video-reels': { title: 'Reels & Video Studio', subtitle: 'Scene-by-scene scriptwriting, voiceover, hooks, and video assets' },
-  calendar: { title: 'Content Calendar', subtitle: 'Schedule, visualize, and reschedule planned Instagram content' },
-  drafts: { title: 'Drafts & Approval', subtitle: 'Review, edit, and approve content before publishing' },
-  automations: { title: 'Automation Centre', subtitle: 'Autonomous 24/7 background content workflows and scheduled jobs' },
-  media: { title: 'Media Library', subtitle: 'Manage verified uploaded and AI-generated image & video assets' },
-  analytics: { title: 'Instagram Analytics', subtitle: 'Real performance metrics and provider capability reporting' },
-  inbox: { title: 'Instagram Inbox', subtitle: 'Comments and Direct Message management with AI reply suggestions' },
-  skills: { title: 'Agent Skills Centre', subtitle: '13 specialized open-source Instagram AI tools and workflows' },
-  monetization: { title: 'Brand Campaigns & Revenue', subtitle: 'Track sponsorships, deliverables, and collaboration income' },
-  history: { title: 'Publishing History', subtitle: 'Live log of every post submission, provider ID, and status' },
-  settings: { title: 'Settings & API Keys', subtitle: 'Publora key, Gemini status, timezones, and auto-publishing rules' },
+  dashboard: {
+    title: 'Dashboard',
+    subtitle: 'Central AI command bar, Instagram pipeline overview & live provider status',
+  },
+  'command-centre': {
+    title: 'AI Search & Command Centre',
+    subtitle: 'Natural-language AI router & command execution across all Instagram workflows',
+  },
+  accounts: {
+    title: 'Instagram Account',
+    subtitle: 'Real connected Instagram profile via Publora v1 API',
+  },
+  'content-studio': {
+    title: 'AI Content Studio',
+    subtitle: 'Generate captions, hashtags, hooks, scripts, ideas & calendars with Gemini',
+  },
+  'image-generator': {
+    title: 'AI Image Generator',
+    subtitle: 'Create Instagram feed graphics, carousel visuals, and covers',
+  },
+  'video-reels': {
+    title: 'Reels & Video Studio',
+    subtitle: 'AI video generation, scene-by-scene scripts, voiceovers & retention hooks',
+  },
+  'carousel-creator': {
+    title: 'Carousel Creator',
+    subtitle: 'Design 2-10 slide Instagram carousels with per-slide copy & visuals',
+  },
+  'story-creator': {
+    title: 'Story Creator',
+    subtitle: 'Build interactive 9:16 Instagram Story frames with stickers & CTAs',
+  },
+  composer: {
+    title: 'Unified Post Composer',
+    subtitle: 'Assemble media, validate Instagram format rules, preview & schedule or publish',
+  },
+  calendar: {
+    title: 'Content Calendar',
+    subtitle: 'Daily, Weekly, Monthly & List views with drag-and-drop rescheduling',
+  },
+  drafts: {
+    title: 'Drafts & Approval',
+    subtitle: 'Review, edit, duplicate, and approve content before publishing',
+  },
+  scheduled: {
+    title: 'Scheduled Posts Queue',
+    subtitle: 'Manage queued Instagram posts, reschedule times & reconcile Publora status',
+  },
+  automations: {
+    title: 'Automation Centre',
+    subtitle: 'Autonomous server-side scheduled content & publishing workflows',
+  },
+  media: {
+    title: 'Media Library',
+    subtitle: 'Search, sort, rename, preview & manage uploaded and AI-generated assets',
+  },
+  analytics: {
+    title: 'Instagram Analytics',
+    subtitle: 'Real publishing metrics & transparent provider capability reporting',
+  },
+  inbox: {
+    title: 'Instagram Inbox',
+    subtitle: 'AI smart comment replies & transparent DM API availability',
+  },
+  skills: {
+    title: 'Agent Skills Centre',
+    subtitle: '13 specialized Instagram AI workflows with history & draft export',
+  },
+  monetization: {
+    title: 'Brand Campaigns & Revenue',
+    subtitle: 'Track sponsorships, deliverables, invoices & collaboration income',
+  },
+  history: {
+    title: 'Publishing History',
+    subtitle: 'Publora postGroupId audit trail, status sync & retry controls',
+  },
+  settings: {
+    title: 'Settings & Rules',
+    subtitle: 'Publora configuration, timezones & approved automatic publishing rules',
+  },
 };
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onOpenMobileSidebar,
   onQuickCreate,
+  onOpenCommandCentre,
   isPubloraConnected,
   onRefreshPublora,
   isRefreshingPublora,
   onOpenAccountSetup,
 }) => {
-  const currentInfo = TAB_TITLES[currentTab] || { title: 'AutoSocial AI', subtitle: 'Instagram Automation Platform' };
+  const currentInfo = TAB_TITLES[currentTab] || {
+    title: 'AutoSocial AI',
+    subtitle: 'Instagram Automation Platform',
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 transition-colors">
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Mobile hamburger & title */}
         <div className="flex items-center gap-3">
           <button
             onClick={onOpenMobileSidebar}
@@ -63,9 +132,21 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Publora Badge + Actions */}
-        <div className="flex items-center gap-2.5">
-          {/* Publora Status Button */}
+        <div className="flex items-center gap-2">
+          {currentTab !== 'command-centre' && (
+            <button
+              onClick={onOpenCommandCentre}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-purple-500/10 hover:border-purple-500/40 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-medium transition"
+              title="Open AI Search & Command Bar (Ctrl+K)"
+            >
+              <Search className="w-3.5 h-3.5 text-purple-400" />
+              <span>AI Command...</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-900 text-[10px] font-mono text-slate-400">
+                ⌘K
+              </kbd>
+            </button>
+          )}
+
           <button
             onClick={onOpenAccountSetup}
             className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
@@ -75,28 +156,28 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Instagram className="w-3.5 h-3.5" />
-            <span>{isPubloraConnected ? 'Publora Connected' : 'Publora API Setup'}</span>
+            <span>{isPubloraConnected ? 'Publora Connected' : 'Publora Setup'}</span>
             {!isPubloraConnected && <Key className="w-3 h-3 ml-0.5" />}
           </button>
 
-          {/* Refresh connection status */}
           <button
             onClick={onRefreshPublora}
             disabled={isRefreshingPublora}
             className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
             title="Refresh Publora connection"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshingPublora ? 'animate-spin text-purple-500' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshingPublora ? 'animate-spin text-purple-500' : ''}`}
+            />
           </button>
 
-          {/* Quick Create Button */}
-          {currentTab !== 'content-studio' && (
+          {currentTab !== 'composer' && (
             <button
               onClick={onQuickCreate}
               className="flex items-center gap-1.5 px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-md shadow-purple-600/25 transition active:scale-95"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Create Content</span>
+              <span>Compose Post</span>
             </button>
           )}
         </div>

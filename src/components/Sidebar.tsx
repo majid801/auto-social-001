@@ -18,19 +18,27 @@ import {
   LogOut,
   Moon,
   Sun,
-  ShieldCheck,
-  ExternalLink,
+  Search,
+  Layers,
+  Smartphone,
+  PenSquare,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export type NavTab =
   | 'dashboard'
+  | 'command-centre'
   | 'accounts'
   | 'content-studio'
   | 'image-generator'
   | 'video-reels'
+  | 'carousel-creator'
+  | 'story-creator'
+  | 'composer'
   | 'calendar'
   | 'drafts'
+  | 'scheduled'
   | 'automations'
   | 'media'
   | 'analytics'
@@ -63,22 +71,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user, logout } = useAuth();
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'accounts', label: 'Instagram Account', icon: Instagram, badge: isPubloraConnected ? 'Connected' : 'Offline' },
-    { id: 'content-studio', label: 'AI Content Studio', icon: Sparkles, highlight: true },
-    { id: 'image-generator', label: 'AI Image Generator', icon: ImageIcon },
-    { id: 'video-reels', label: 'Reels & Video Studio', icon: Film },
-    { id: 'calendar', label: 'Content Calendar', icon: Calendar },
-    { id: 'drafts', label: 'Drafts & Approval', icon: FileText },
-    { id: 'automations', label: 'Automation Centre', icon: Zap },
-    { id: 'media', label: 'Media Library', icon: FolderOpen },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'inbox', label: 'Instagram Inbox', icon: MessageSquare },
-    { id: 'skills', label: 'Agent Skills (13)', icon: Wand2 },
-    { id: 'monetization', label: 'Brand Campaigns', icon: DollarSign },
-    { id: 'history', label: 'Publishing History', icon: History },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const navGroups: Array<{
+    group: string;
+    items: Array<{ id: NavTab; label: string; icon: any; badge?: string; highlight?: boolean }>;
+  }> = [
+    {
+      group: 'Overview & Command',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'command-centre', label: 'AI Command Centre', icon: Search, highlight: true },
+        {
+          id: 'accounts',
+          label: 'Instagram Account',
+          icon: Instagram,
+          badge: isPubloraConnected ? 'Connected' : 'Offline',
+        },
+      ],
+    },
+    {
+      group: 'Creation Studios',
+      items: [
+        { id: 'content-studio', label: 'AI Content Studio', icon: Sparkles, highlight: true },
+        { id: 'image-generator', label: 'AI Image Generator', icon: ImageIcon },
+        { id: 'video-reels', label: 'Reels & Video Studio', icon: Film },
+        { id: 'carousel-creator', label: 'Carousel Creator', icon: Layers },
+        { id: 'story-creator', label: 'Story Creator', icon: Smartphone },
+        { id: 'composer', label: 'Post Composer', icon: PenSquare },
+      ],
+    },
+    {
+      group: 'Schedule & Automation',
+      items: [
+        { id: 'calendar', label: 'Content Calendar', icon: Calendar },
+        { id: 'drafts', label: 'Drafts & Approval', icon: FileText },
+        { id: 'scheduled', label: 'Scheduled Queue', icon: Clock },
+        { id: 'automations', label: 'Automation Centre', icon: Zap },
+        { id: 'history', label: 'Publishing History', icon: History },
+      ],
+    },
+    {
+      group: 'Assets, Growth & Ops',
+      items: [
+        { id: 'media', label: 'Media Library', icon: FolderOpen },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+        { id: 'inbox', label: 'Instagram Inbox', icon: MessageSquare },
+        { id: 'skills', label: 'Agent Skills (13)', icon: Wand2 },
+        { id: 'monetization', label: 'Brand Campaigns', icon: DollarSign },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ],
+    },
   ];
 
   const handleNavClick = (id: NavTab) => {
@@ -88,7 +129,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
@@ -109,9 +149,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div>
               <div className="font-extrabold text-white text-lg tracking-tight flex items-center gap-1.5">
-                AutoSocial <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold border border-purple-500/30">AI</span>
+                AutoSocial{' '}
+                <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold border border-purple-500/30">
+                  AI
+                </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">Instagram-Only SaaS</p>
+              <p className="text-[11px] text-slate-400 font-medium">Instagram-Only Automation</p>
             </div>
           </div>
         </div>
@@ -129,7 +172,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isPubloraConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isPubloraConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                }`}
+              />
               {isPubloraConnected ? 'Publora Active' : 'Setup Required'}
             </span>
           </div>
@@ -139,41 +186,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id as NavTab)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/25'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : item.highlight ? 'text-purple-400' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                      isPubloraConnected
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-slate-800 text-slate-400'
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 custom-scrollbar">
+          {navGroups.map((group) => (
+            <div key={group.group} className="space-y-1">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {group.group}
+              </p>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/25'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                     }`}
                   >
-                    {item.badge}
-                  </span>
-                )}
-                {item.highlight && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                )}
-              </button>
-            );
-          })}
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={`w-4 h-4 ${
+                          isActive
+                            ? 'text-white'
+                            : item.highlight
+                            ? 'text-purple-400'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          isPubloraConnected
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.highlight && !isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User profile & actions */}
@@ -184,7 +246,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-xs flex items-center gap-2"
               title="Toggle theme"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
+              {isDarkMode ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-300" />
+              )}
               <span className="text-xs">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
 
@@ -212,7 +278,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white truncate">{user.displayName || 'Instagram Creator'}</p>
+                <p className="text-xs font-semibold text-white truncate">
+                  {user.displayName || 'Instagram Creator'}
+                </p>
                 <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
               </div>
             </div>

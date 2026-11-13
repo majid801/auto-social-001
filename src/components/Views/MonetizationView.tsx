@@ -21,6 +21,7 @@ export const MonetizationView: React.FC = () => {
   const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // New campaign form state
   const [brandName, setBrandName] = useState<string>('');
@@ -78,7 +79,7 @@ export const MonetizationView: React.FC = () => {
   };
 
   const handleDelete = async (campaignId: string) => {
-    if (!confirm('Delete this sponsorship record?')) return;
+    setConfirmDeleteId(null);
     try {
       await deleteDoc(doc(db, 'brandCampaigns', campaignId));
       setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
@@ -193,14 +194,30 @@ export const MonetizationView: React.FC = () => {
                     <span className="text-[10px] text-slate-400">Contract Value</span>
                   </div>
 
-                  {c.id && (
+                  {c.id && confirmDeleteId !== c.id && (
                     <button
-                      onClick={() => handleDelete(c.id!)}
+                      onClick={() => setConfirmDeleteId(c.id!)}
                       className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                       title="Delete Deal"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  )}
+                  {c.id && confirmDeleteId === c.id && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[11px]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id!)}
+                        className="px-2 py-1 rounded bg-rose-600 text-white text-[11px] font-semibold"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

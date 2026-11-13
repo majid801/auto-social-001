@@ -10,15 +10,20 @@ import {
   Search,
   ExternalLink,
   History,
-  FileText,
   ChevronRight,
-  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
-import { SkillRun } from '../../types';
+import { PostFormat, SkillRun } from '../../types';
 import { runInstagramAgentSkill } from '../../services/api';
+import { NavTab } from '../Sidebar';
+
+interface SkillsCentreViewProps {
+  onNavigate?: (tab: NavTab) => void;
+}
 
 interface SkillDefinition {
   id: string;
@@ -136,15 +141,17 @@ const AGENT_SKILLS: SkillDefinition[] = [
   },
 ];
 
-export const SkillsCentreView: React.FC = () => {
+export const SkillsCentreView: React.FC<SkillsCentreViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
 
   const [selectedSkill, setSelectedSkill] = useState<SkillDefinition>(AGENT_SKILLS[0]);
   const [skillInput, setSkillInput] = useState<string>('');
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [skillOutput, setSkillOutput] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [historyRuns, setHistoryRuns] = useState<SkillRun[]>([]);
@@ -159,7 +166,9 @@ export const SkillsCentreView: React.FC = () => {
     try {
       const q = query(collection(db, 'skillRuns'), where('userId', '==', user.uid));
       const snap = await getDocs(q);
-      setHistoryRuns(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SkillRun[]);
+      const runs = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SkillRun[];
+      runs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setHistoryRuns(runs);
     } catch (err) {
       console.error('Error loading skill runs:', err);
     }
@@ -171,13 +180,13 @@ export const SkillsCentreView: React.FC = () => {
 
     setIsRunning(true);
     setSavedSuccess(false);
+    setErrorMsg(null);
 
     try {
       const res = await runInstagramAgentSkill(selectedSkill.id, skillInput);
       if (res.success && res.output) {
         setSkillOutput(res.output);
 
-        // Record execution in Firestore
         if (user) {
           const runPayload: Omit<SkillRun, 'id'> = {
             userId: user.uid,
@@ -190,11 +199,51 @@ export const SkillsCentreView: React.FC = () => {
           const docRef = await addDoc(collection(db, 'skillRuns'), runPayload);
           setHistoryRuns((prev) => [{ id: docRef.id, ...runPayload }, ...prev]);
         }
+      } else {
+        setErrorMsg(res.error || 'Gemini could not execute this skill. Check API quota or input.');
       }
     } catch (err: any) {
-      alert(`Skill run failed: ${err.message}`);
+      setErrorMsg(`Skill run failed: ${err.message}`);
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const handleSaveAsDraft = async () => {
+    if (!user || !skillOutput.trim()) return;
+    setIsSavingDraft(true);
+    setErrorMsg(null);
+    try {
+      const formatMap: Record<string, PostFormat> = {
+        'ig-reel': 'reel',
+        'ig-carousel': 'carousel',
+        'ig-story': 'story',
+      };
+      const format: PostFormat = formatMap[selectedSkill.id] || 'post';
+      const now = new Date().toISOString();
+
+      await addDoc(collection(db, 'posts'), {
+        userId: user.uid,
+        title: `${selectedSkill.id.toUpperCase()}: ${skillInput.slice(0, 50)}`,
+        topic: skillInput.slice(0, 120),
+        format,
+        status: 'draft',
+        caption: skillOutput.slice(0, 3900),
+        hashtags: '',
+        ...(format === 'reel' ? { script: skillOutput.slice(0, 9500) } : {}),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      setSavedSuccess(true);
+    } catch (err: any) {
+      try {
+        handleFirestoreError(err, OperationType.CREATE, 'posts');
+      } catch {
+        setErrorMsg(`Failed to save draft: ${err.message}`);
+      }
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -228,7 +277,7 @@ export const SkillsCentreView: React.FC = () => {
               Instagram Agent Skills Hub (13 Tools)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Based on the open-source Instagram Agent Skill suite (Jakeschincariol/instagram-agent-skill).
+              Specialized Instagram AI workflows powered by Gemini 4 Hydrogen.
             </p>
           </div>
         </div>
@@ -246,9 +295,8 @@ export const SkillsCentreView: React.FC = () => {
 
       {/* Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Skill Selector (4 Cols) */}
+        {/* Left Column: Skill Selector */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Search & Categories */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -278,7 +326,6 @@ export const SkillsCentreView: React.FC = () => {
             </div>
           </div>
 
-          {/* Skill List items */}
           <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
             {filteredSkills.map((skill) => (
               <div
@@ -286,6 +333,8 @@ export const SkillsCentreView: React.FC = () => {
                 onClick={() => {
                   setSelectedSkill(skill);
                   setSkillOutput('');
+                  setSavedSuccess(false);
+                  setErrorMsg(null);
                 }}
                 className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center justify-between gap-2 ${
                   selectedSkill.id === skill.id
@@ -301,15 +350,18 @@ export const SkillsCentreView: React.FC = () => {
                     {skill.description}
                   </span>
                 </div>
-                <ChevronRight className={`w-4 h-4 shrink-0 ${selectedSkill.id === skill.id ? 'text-purple-400' : 'text-slate-500'}`} />
+                <ChevronRight
+                  className={`w-4 h-4 shrink-0 ${
+                    selectedSkill.id === skill.id ? 'text-purple-400' : 'text-slate-500'
+                  }`}
+                />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Column: Execution Workspace (8 Cols) */}
+        {/* Right Column: Execution Workspace */}
         <div className="lg:col-span-8 space-y-5">
-          {/* Active Skill Execution Box */}
           <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block mb-1">
@@ -322,6 +374,35 @@ export const SkillsCentreView: React.FC = () => {
                 {selectedSkill.description}
               </p>
             </div>
+
+            {errorMsg && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+                <button onClick={() => setErrorMsg(null)} className="underline text-[11px] shrink-0">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {savedSuccess && (
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Saved workflow output to your Instagram Drafts pipeline.</span>
+                </div>
+                {onNavigate && (
+                  <button
+                    onClick={() => onNavigate('drafts')}
+                    className="underline font-semibold text-[11px] shrink-0"
+                  >
+                    Open Drafts →
+                  </button>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleRunSkill} className="space-y-3">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -359,17 +440,29 @@ export const SkillsCentreView: React.FC = () => {
             {/* Generated Skill Output */}
             {skillOutput && (
               <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4" /> Workflow Output
                   </span>
-                  <button
-                    onClick={handleCopy}
-                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copied ? 'Copied' : 'Copy Output'}</span>
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveAsDraft}
+                      disabled={isSavingDraft}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingDraft ? 'Saving...' : 'Save Output as Draft'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="text-xs text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copied ? 'Copied' : 'Copy Output'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed font-mono">
@@ -387,7 +480,14 @@ export const SkillsCentreView: React.FC = () => {
               </span>
               <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {historyRuns.slice(0, 5).map((run) => (
-                  <div key={run.id} className="py-2.5 flex items-center justify-between gap-3">
+                  <div
+                    key={run.id}
+                    onClick={() => {
+                      setSkillInput(run.inputParams);
+                      setSkillOutput(run.resultOutput);
+                    }}
+                    className="py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/30 px-2 rounded-lg transition"
+                  >
                     <div className="min-w-0">
                       <span className="font-semibold text-slate-900 dark:text-white mr-2">
                         {run.skillName}

@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LandingPageView } from './components/Views/LandingPageView';
 import { DashboardView } from './components/Views/DashboardView';
+import { CommandCentreView } from './components/Views/CommandCentreView';
 import { InstagramAccountsView } from './components/Views/InstagramAccountsView';
 import { ContentStudioView } from './components/Views/ContentStudioView';
 import { ImageGeneratorView } from './components/Views/ImageGeneratorView';
 import { VideoReelsStudioView } from './components/Views/VideoReelsStudioView';
+import { CarouselCreatorView } from './components/Views/CarouselCreatorView';
+import { StoryCreatorView } from './components/Views/StoryCreatorView';
+import { PostComposerView } from './components/Views/PostComposerView';
 import { ContentCalendarView } from './components/Views/ContentCalendarView';
 import { DraftsView } from './components/Views/DraftsView';
+import { ScheduledQueueView } from './components/Views/ScheduledQueueView';
 import { AutomationCentreView } from './components/Views/AutomationCentreView';
 import { MediaLibraryView } from './components/Views/MediaLibraryView';
 import { AnalyticsView } from './components/Views/AnalyticsView';
@@ -18,10 +23,19 @@ import { SkillsCentreView } from './components/Views/SkillsCentreView';
 import { MonetizationView } from './components/Views/MonetizationView';
 import { PublishingHistoryView } from './components/Views/PublishingHistoryView';
 import { SettingsView } from './components/Views/SettingsView';
-import { fetchPubloraConnections, PubloraConnectionResponse } from './services/api';
+import {
+  fetchPubloraConnections,
+  PubloraConnectionResponse,
+  syncSchedulerWithServer,
+  fetchSchedulerState,
+  ackServerDrafts,
+} from './services/api';
+import { collection, query, where, getDocs, updateDoc, addDoc, doc } from 'firebase/firestore';
+import { db } from './lib/firebase';
+import { Post, AutomationRule } from './types';
 
 function MainApp() {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -46,12 +60,101 @@ function MainApp() {
     }
   }, [isDarkMode]);
 
+  // Global Cmd+K / Ctrl+K shortcut to open Universal AI Command Centre
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCurrentTab('command-centre');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Load Publora connection status when authenticated
   useEffect(() => {
     if (user) {
       loadPubloraStatus();
     }
   }, [user]);
+
+  const syncBackgroundScheduler = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [postsSnap, autoSnap] = await Promise.all([
+        getDocs(query(collection(db, 'posts'), where('userId', '==', user.uid))),
+        getDocs(query(collection(db, 'automations'), where('userId', '==', user.uid))),
+      ]);
+
+      const allPosts = postsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Post[];
+      const syncPosts = allPosts.filter((p) => p.status === 'scheduled' || p.status === 'approved');
+      const automations = autoSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as AutomationRule[];
+
+      await syncSchedulerWithServer({
+        userId: user.uid,
+        posts: syncPosts,
+        automations,
+        autoPublishApproved: Boolean(userProfile?.autoPublishApproved),
+      });
+
+      // Reconcile server-updated post statuses & server-generated drafts back to Firestore
+      const stateRes = await fetchSchedulerState(user.uid);
+      if (stateRes.success) {
+        const serverPosts: any[] = Array.isArray(stateRes.posts) ? stateRes.posts : [];
+        for (const sp of serverPosts) {
+          if (!sp.id) continue;
+          const localMatch = allPosts.find((lp) => lp.id === sp.id);
+          if (localMatch && (sp.status === 'published' || sp.status === 'failed') && sp.status !== localMatch.status) {
+            await updateDoc(doc(db, 'posts', sp.id), {
+              status: sp.status,
+              ...(sp.publoraPostId ? { publoraPostId: sp.publoraPostId } : {}),
+              ...(sp.publishedTime ? { publishedTime: sp.publishedTime } : {}),
+              ...(sp.failureReason ? { failureReason: sp.failureReason } : {}),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+
+        const generatedDrafts: any[] = Array.isArray(stateRes.generatedDrafts) ? stateRes.generatedDrafts : [];
+        if (generatedDrafts.length > 0) {
+          for (const draft of generatedDrafts) {
+            const now = new Date().toISOString();
+            await addDoc(collection(db, 'posts'), {
+              userId: user.uid,
+              title: draft.title || 'Automated Instagram Draft',
+              topic: draft.topic || draft.title || '',
+              format: draft.format || 'post',
+              status: 'draft',
+              caption: draft.caption || '',
+              hashtags: draft.hashtags || '',
+              hook: draft.hook || '',
+              cta: draft.cta || '',
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+          await ackServerDrafts(user.uid);
+        }
+      }
+    } catch (err) {
+      console.error('Background scheduler sync error:', err);
+    }
+  }, [user, userProfile?.autoPublishApproved]);
+
+  useEffect(() => {
+    if (!user) return;
+    const initialTimer = setTimeout(() => {
+      syncBackgroundScheduler();
+    }, 2500);
+    const interval = setInterval(() => {
+      syncBackgroundScheduler();
+    }, 60000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [user, syncBackgroundScheduler]);
 
   const loadPubloraStatus = async () => {
     setIsRefreshingPublora(true);
@@ -90,7 +193,6 @@ function MainApp() {
     );
   }
 
-  // If user is not logged in, render the SaaS landing page
   if (!user) {
     return <LandingPageView />;
   }
@@ -114,7 +216,8 @@ function MainApp() {
         <Header
           currentTab={currentTab}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-          onQuickCreate={() => setCurrentTab('content-studio')}
+          onQuickCreate={() => setCurrentTab('composer')}
+          onOpenCommandCentre={() => setCurrentTab('command-centre')}
           isPubloraConnected={isPubloraConnected}
           onRefreshPublora={loadPubloraStatus}
           isRefreshingPublora={isRefreshingPublora}
@@ -129,6 +232,14 @@ function MainApp() {
               instagramAccount={instagramAccount}
               onRefreshPublora={loadPubloraStatus}
               isRefreshingPublora={isRefreshingPublora}
+            />
+          )}
+
+          {currentTab === 'command-centre' && (
+            <CommandCentreView
+              onNavigate={setCurrentTab}
+              instagramAccount={instagramAccount}
+              isPubloraConnected={isPubloraConnected}
             />
           )}
 
@@ -158,6 +269,30 @@ function MainApp() {
             <VideoReelsStudioView onNavigate={setCurrentTab} />
           )}
 
+          {currentTab === 'carousel-creator' && (
+            <CarouselCreatorView
+              onNavigate={setCurrentTab}
+              isPubloraConnected={isPubloraConnected}
+              instagramAccount={instagramAccount}
+            />
+          )}
+
+          {currentTab === 'story-creator' && (
+            <StoryCreatorView
+              onNavigate={setCurrentTab}
+              isPubloraConnected={isPubloraConnected}
+              instagramAccount={instagramAccount}
+            />
+          )}
+
+          {currentTab === 'composer' && (
+            <PostComposerView
+              onNavigate={setCurrentTab}
+              isPubloraConnected={isPubloraConnected}
+              instagramAccount={instagramAccount}
+            />
+          )}
+
           {currentTab === 'calendar' && (
             <ContentCalendarView
               onNavigate={setCurrentTab}
@@ -173,15 +308,23 @@ function MainApp() {
             />
           )}
 
+          {currentTab === 'scheduled' && (
+            <ScheduledQueueView
+              onNavigate={setCurrentTab}
+              isPubloraConnected={isPubloraConnected}
+              instagramAccount={instagramAccount}
+            />
+          )}
+
           {currentTab === 'automations' && <AutomationCentreView />}
 
-          {currentTab === 'media' && <MediaLibraryView />}
+          {currentTab === 'media' && <MediaLibraryView onNavigate={setCurrentTab} />}
 
           {currentTab === 'analytics' && <AnalyticsView />}
 
           {currentTab === 'inbox' && <InboxView />}
 
-          {currentTab === 'skills' && <SkillsCentreView />}
+          {currentTab === 'skills' && <SkillsCentreView onNavigate={setCurrentTab} />}
 
           {currentTab === 'monetization' && <MonetizationView />}
 

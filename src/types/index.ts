@@ -1,5 +1,11 @@
 export type PostFormat = 'reel' | 'post' | 'carousel' | 'story' | 'video';
-export type PostStatus = 'draft' | 'awaiting_approval' | 'approved' | 'scheduled' | 'published' | 'failed';
+export type PostStatus =
+  | 'draft'
+  | 'awaiting_approval'
+  | 'approved'
+  | 'scheduled'
+  | 'published'
+  | 'failed';
 
 export interface SceneBreakdown {
   sceneNumber: number;
@@ -8,6 +14,24 @@ export interface SceneBreakdown {
   voiceover: string;
   subtitleText: string;
   transition?: string;
+}
+
+export interface CarouselSlide {
+  slideNumber: number;
+  headline: string;
+  bodyText: string;
+  visualPrompt: string;
+  designNotes?: string;
+  imageUrl?: string;
+}
+
+export interface StoryFrame {
+  frameNumber: number;
+  visualPrompt: string;
+  overlayText: string;
+  interactiveSticker?: string;
+  stickerOptions?: string;
+  mediaUrl?: string;
 }
 
 export interface Post {
@@ -23,12 +47,15 @@ export interface Post {
   cta?: string;
   script?: string;
   scenes?: string; // JSON serialized string of SceneBreakdown[]
+  carouselSlides?: string; // JSON serialized string of CarouselSlide[]
+  storyFrames?: string; // JSON serialized string of StoryFrame[]
   visualStyle?: string;
   voiceover?: string;
   musicDescription?: string;
   suggestedDuration?: string;
   suggestedPostingTime?: string;
   mediaUrl?: string;
+  mediaUrls?: string[];
   mediaType?: 'image' | 'video';
   scheduledTime?: string;
   publishedTime?: string;
@@ -130,4 +157,19 @@ export interface UserProfile {
   theme?: 'light' | 'dark' | 'system';
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ParsedCommandIntent {
+  intentCategory: string;
+  targetTab: string;
+  actionType: string;
+  topic?: string;
+  contentFormat?: string;
+  aspectRatio?: string;
+  searchQuery?: string;
+  scheduleHint?: string;
+  requiresConfirmation: boolean;
+  shouldAutoExecute: boolean;
+  summary: string;
+  confirmationPrompt?: string;
 }
