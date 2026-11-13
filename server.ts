@@ -6,6 +6,15 @@ import multer from 'multer';
 import cron from 'node-cron';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import {
+  downloadFreeAistudioJob,
+  freeAistudioHealth,
+  getFreeAistudioJob,
+  persistGeneratedMedia,
+  readLocalReferenceImage,
+  submitFreeAistudioJob,
+} from './src/services/freeAistudio';
 
 dotenv.config();
 
@@ -656,6 +665,14 @@ app.get('/api/config/status', (_req: Request, res: Response) => {
   });
 });
 
+app.get('/api/ai/free-aistudio/status', async (_req: Request, res: Response) => {
+  const [image, video] = await Promise.all([
+    freeAistudioHealth('image'),
+    freeAistudioHealth('video'),
+  ]);
+  res.json({ image, video });
+});
+
 // ----------------------------------------------------
 // PUBLORA API INTEGRATION ROUTES
 // ----------------------------------------------------
@@ -1288,11 +1305,6 @@ const SUPPORTED_IMAGE_MODELS = [
 ] as const;
 
 app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
-  const ai = getGeminiClient();
-  if (!ai) {
-    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
-  }
-
   const {
     prompt,
     aspectRatio = '1:1',
@@ -1306,6 +1318,50 @@ app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
 
   if (!prompt || !String(prompt).trim()) {
     return res.status(400).json({ success: false, error: 'Prompt is required' });
+  }
+
+  if (process.env.MEDIA_GENERATION_PROVIDER?.trim().toLowerCase() === 'free-aistudio') {
+    try {
+      const ratio = String(aspectRatio);
+      const dimensions: Record<string, [number, number]> = {
+        '1:1': [1024, 1024], '4:5': [768, 960], '3:4': [768, 1024],
+        '4:3': [1024, 768], '9:16': [576, 1024], '16:9': [1024, 576],
+      };
+      const [width, height] = dimensions[ratio] || dimensions['1:1'];
+      const referenceImageBase64 = readLocalReferenceImage(referenceImageUrl, uploadsDir);
+      const generated: Array<{ url: string; filename: string; mimeType: string }> = [];
+      const count = Math.min(Math.max(Number(variations) || 1, 1), 3);
+      for (let index = 0; index < count; index++) {
+        const submitted = await submitFreeAistudioJob('image', {
+          kind: 'image', prompt: `${String(prompt).trim()}. Aesthetic style: ${style}.`,
+          width, height, steps: quality === 'hd' ? 12 : 8, referenceImageBase64,
+        });
+        const deadline = Date.now() + 5 * 60 * 1000;
+        let status = await getFreeAistudioJob('image', submitted.jobId);
+        while (status.status === 'queued' || status.status === 'processing') {
+          if (Date.now() >= deadline) throw new Error('GPU image generation timed out while waiting for inference.');
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          status = await getFreeAistudioJob('image', submitted.jobId);
+        }
+        if (status.status !== 'completed') throw new Error(status.error || 'GPU image generation failed.');
+        const media = await downloadFreeAistudioJob('image', submitted.jobId);
+        generated.push(persistGeneratedMedia(media.bytes, media.mimeType, 'image', uploadsDir));
+      }
+      return res.json({
+        success: true, imageUrl: generated[0]?.url,
+        images: generated.map(({ url, filename, mimeType }) => ({ imageUrl: url, filename, mimeType })),
+        modelUsed: 'Z-Image-Turbo (free-aistudio)', endpoint: 'authenticated Kaggle GPU bridge',
+        aspectRatio: ratio, prompt,
+      });
+    } catch (error: any) {
+      console.error('Free-aistudio image generation error:', error);
+      return res.status(502).json({ success: false, error: error?.message || 'Free-aistudio image generation failed.' });
+    }
+  }
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
   }
 
   const defaultModel =
@@ -1427,6 +1483,8 @@ app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
 interface VideoJob {
   jobId: string;
   interactionId?: string;
+  providerJobId?: string;
+  freeAistudio?: boolean;
   modelUsed: string;
   endpoint: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
@@ -1451,6 +1509,22 @@ const videoJobs = new Map<string, VideoJob>();
 const VIDEO_MODEL_ID = 'gemini-omni-flash-preview';
 const VIDEO_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/interactions (background: true)';
+
+function signMediaJobId(jobId: string) {
+  const secret = process.env.MEDIA_SESSION_SECRET?.trim() || '';
+  if (secret.length < 32) throw new Error('MEDIA_SESSION_SECRET must contain at least 32 characters.');
+  const signature = createHmac('sha256', secret).update(jobId).digest('hex');
+  return `${jobId}.${signature}`;
+}
+
+function verifyMediaJobId(signedJobId: string): string | null {
+  const match = signedJobId.match(/^(gpu-\d+-[a-z0-9]{6})\.([a-f0-9]{64})$/);
+  const secret = process.env.MEDIA_SESSION_SECRET?.trim() || '';
+  if (!match || secret.length < 32) return null;
+  const expected = createHmac('sha256', secret).update(match[1]).digest();
+  const supplied = Buffer.from(match[2], 'hex');
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected) ? match[1] : null;
+}
 
 function extractVideoFromInteraction(interaction: any): { data?: string; mimeType?: string; uri?: string } | null {
   if (interaction?.output_video?.data || interaction?.output_video?.uri) {
@@ -1489,11 +1563,6 @@ function applyInteractionFailureToJob(job: VideoJob, interaction: any) {
 }
 
 app.post('/api/ai/generate-video', async (req: Request, res: Response) => {
-  const ai = getGeminiClient();
-  if (!ai) {
-    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
-  }
-
   const {
     prompt,
     aspectRatio = '9:16',
@@ -1509,6 +1578,44 @@ app.post('/api/ai/generate-video', async (req: Request, res: Response) => {
   const validAspect = aspectRatio === '16:9' ? '16:9' : '9:16';
   const validDuration = ['5s', '8s', '10s', '15s'].includes(duration) ? duration : '10s';
   const validRes = ['360p', '720p', '1080p'].includes(resolution) ? resolution : '720p';
+
+  if (process.env.MEDIA_GENERATION_PROVIDER?.trim().toLowerCase() === 'free-aistudio') {
+    if (validDuration === '15s') {
+      return res.status(400).json({ success: false, error: 'LTX-Video 2.3 in this Kaggle workflow supports up to 10 seconds per generation.' });
+    }
+    if ((process.env.MEDIA_SESSION_SECRET?.trim() || '').length < 32) {
+      return res.status(500).json({ success: false, error: 'MEDIA_SESSION_SECRET must be set to a random value of at least 32 characters before video generation.' });
+    }
+    try {
+      const referenceImageBase64 = readLocalReferenceImage(referenceImageUrl, uploadsDir);
+      const providerJob = await submitFreeAistudioJob('video', {
+        kind: 'video', prompt: String(prompt).trim(),
+        width: validAspect === '9:16' ? 288 : 512,
+        height: validAspect === '9:16' ? 512 : 288,
+        durationSeconds: Number.parseInt(validDuration, 10),
+        steps: 8, referenceImageBase64,
+      });
+      const internalJobId = `gpu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const jobId = signMediaJobId(internalJobId);
+      const job: VideoJob = {
+        jobId, providerJobId: providerJob.jobId, freeAistudio: true,
+        modelUsed: 'LTX-Video 2.3 (free-aistudio)', endpoint: 'authenticated Kaggle GPU bridge',
+        status: providerJob.status === 'processing' ? 'processing' : 'queued',
+        prompt: String(prompt).trim(), aspectRatio: validAspect, duration: validDuration,
+        resolution: 'Kaggle GPU native output', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      videoJobs.set(internalJobId, job);
+      return res.status(202).json({ success: true, ...job });
+    } catch (error: any) {
+      console.error('Free-aistudio video submission error:', error);
+      return res.status(502).json({ success: false, error: error?.message || 'Could not submit LTX-Video 2.3 job.' });
+    }
+  }
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
+  }
 
   const jobId = `vid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const job: VideoJob = {
@@ -1651,10 +1758,32 @@ app.post('/api/ai/generate-video', async (req: Request, res: Response) => {
   });
 });
 
-app.get('/api/ai/video-status/:jobId', (req: Request, res: Response) => {
-  const job = videoJobs.get(req.params.jobId);
+app.get('/api/ai/video-status/:jobId', async (req: Request, res: Response) => {
+  const providedJobId = req.params.jobId;
+  const lookupId = providedJobId.startsWith('gpu-') ? verifyMediaJobId(providedJobId) : providedJobId;
+  if (!lookupId) {
+    return res.status(401).json({ success: false, error: 'Video media session signature is invalid or expired.' });
+  }
+  const job = videoJobs.get(lookupId);
   if (!job) {
     return res.status(404).json({ success: false, error: 'Video job not found' });
+  }
+  if (job.freeAistudio && job.providerJobId) {
+    try {
+      const provider = await getFreeAistudioJob('video', job.providerJobId);
+      job.status = provider.status;
+      job.updatedAt = new Date().toISOString();
+      if (provider.status === 'failed') {
+        job.error = provider.error || 'LTX-Video 2.3 inference failed.';
+      } else if (provider.status === 'completed' && !job.videoUrl) {
+        const media = await downloadFreeAistudioJob('video', job.providerJobId);
+        const saved = persistGeneratedMedia(media.bytes, media.mimeType, 'video', uploadsDir);
+        job.videoUrl = saved.url;
+        job.filename = saved.filename;
+      }
+    } catch (error: any) {
+      return res.status(503).json({ success: false, ...job, error: error?.message || 'GPU service status is temporarily unavailable.' });
+    }
   }
   return res.json({ success: job.status !== 'failed', ...job });
 });
