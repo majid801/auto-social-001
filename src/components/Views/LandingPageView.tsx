@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Instagram,
   Sparkles,
@@ -17,6 +17,16 @@ import { useAuth } from '../../context/AuthContext';
 
 export const LandingPageView: React.FC = () => {
   const { signInWithGoogle, loading } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const handleSignIn = async () => {
+    setAuthError(null);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Google Sign-In failed. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-purple-500 selection:text-white">
@@ -37,7 +47,7 @@ export const LandingPageView: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={signInWithGoogle}
+              onClick={handleSignIn}
               disabled={loading}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-purple-600/30 transition flex items-center gap-2 active:scale-95"
             >
@@ -72,7 +82,7 @@ export const LandingPageView: React.FC = () => {
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
-                onClick={signInWithGoogle}
+                onClick={handleSignIn}
                 disabled={loading}
                 className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 hover:from-purple-500 hover:via-pink-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition flex items-center justify-center gap-2.5 active:scale-95"
               >
@@ -80,6 +90,13 @@ export const LandingPageView: React.FC = () => {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
+
+            {authError && (
+              <div role="alert" className="mx-auto max-w-2xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-left text-xs leading-relaxed text-amber-200">
+                <strong className="mr-1">Google Sign-In could not continue.</strong>
+                {authError}
+              </div>
+            )}
 
             <div className="pt-6 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
               <span className="flex items-center gap-1.5">

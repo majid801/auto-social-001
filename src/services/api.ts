@@ -1,3 +1,12 @@
+import { auth } from '../lib/firebase';
+
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
+}
+
 export interface ConfigStatusResponse {
   status: string;
   publora: {
@@ -45,17 +54,17 @@ export interface PubloraConnectionResponse {
 }
 
 export async function fetchConfigStatus(): Promise<ConfigStatusResponse> {
-  const res = await fetch('/api/config/status');
+  const res = await apiFetch('/api/config/status');
   return res.json();
 }
 
 export async function fetchPubloraConnections(): Promise<PubloraConnectionResponse> {
-  const res = await fetch('/api/publora/platform-connections');
+  const res = await apiFetch('/api/publora/platform-connections');
   return res.json();
 }
 
 export async function testPubloraConnection(payload: any): Promise<any> {
-  const res = await fetch('/api/publora/test-connection', {
+  const res = await apiFetch('/api/publora/test-connection', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -76,7 +85,7 @@ export async function publishPostViaPublora(postData: {
   publishNow?: boolean;
   videoType?: 'REELS' | 'STORIES';
 }): Promise<any> {
-  const res = await fetch('/api/publora/create-post', {
+  const res = await apiFetch('/api/publora/create-post', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -89,17 +98,17 @@ export async function publishPostViaPublora(postData: {
 
 export async function fetchPubloraPosts(params?: Record<string, string>): Promise<any> {
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-  const res = await fetch(`/api/publora/list-posts${query}`);
+  const res = await apiFetch(`/api/publora/list-posts${query}`);
   return res.json();
 }
 
 export async function fetchPubloraPostById(id: string): Promise<any> {
-  const res = await fetch(`/api/publora/get-post/${encodeURIComponent(id)}`);
+  const res = await apiFetch(`/api/publora/get-post/${encodeURIComponent(id)}`);
   return res.json();
 }
 
 export async function updatePubloraPost(id: string, updates: any): Promise<any> {
-  const res = await fetch(`/api/publora/update-post/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/publora/update-post/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -108,14 +117,14 @@ export async function updatePubloraPost(id: string, updates: any): Promise<any> 
 }
 
 export async function deletePubloraPost(id: string): Promise<any> {
-  const res = await fetch(`/api/publora/delete-post/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/publora/delete-post/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
   return res.json();
 }
 
 export async function parseUniversalCommand(command: string): Promise<any> {
-  const res = await fetch('/api/ai/command-intent', {
+  const res = await apiFetch('/api/ai/command-intent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command }),
@@ -136,7 +145,7 @@ export async function generateInstagramContent(params: {
   hashtagCount?: number;
   ideaCount?: number;
 }): Promise<any> {
-  const res = await fetch('/api/ai/generate-content', {
+  const res = await apiFetch('/api/ai/generate-content', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -152,7 +161,7 @@ export async function regenerateAISection(params: {
   language?: string;
   tone?: string;
 }): Promise<any> {
-  const res = await fetch('/api/ai/regenerate-section', {
+  const res = await apiFetch('/api/ai/regenerate-section', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -161,7 +170,7 @@ export async function regenerateAISection(params: {
 }
 
 export async function fetchGeminiModels(): Promise<any> {
-  const res = await fetch('/api/ai/models');
+  const res = await apiFetch('/api/ai/models');
   return res.json();
 }
 
@@ -175,7 +184,7 @@ export async function generateAIImage(params: {
   variations?: number;
   referenceImageUrl?: string;
 }): Promise<any> {
-  const res = await fetch('/api/ai/generate-image', {
+  const res = await apiFetch('/api/ai/generate-image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -190,7 +199,7 @@ export async function generateAIVideo(params: {
   resolution?: '360p' | '720p' | '1080p';
   referenceImageUrl?: string;
 }): Promise<any> {
-  const res = await fetch('/api/ai/generate-video', {
+  const res = await apiFetch('/api/ai/generate-video', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -199,7 +208,7 @@ export async function generateAIVideo(params: {
 }
 
 export async function fetchAIVideoStatus(jobId: string): Promise<any> {
-  const res = await fetch(`/api/ai/video-status/${encodeURIComponent(jobId)}`);
+  const res = await apiFetch(`/api/ai/video-status/${encodeURIComponent(jobId)}`);
   return res.json();
 }
 
@@ -209,7 +218,7 @@ export async function generateReelVideoPlan(params: {
   tone?: string;
   language?: string;
 }): Promise<any> {
-  const res = await fetch('/api/ai/generate-video-plan', {
+  const res = await apiFetch('/api/ai/generate-video-plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -218,7 +227,7 @@ export async function generateReelVideoPlan(params: {
 }
 
 export async function runInstagramAgentSkill(skillId: string, input: string): Promise<any> {
-  const res = await fetch('/api/ai/run-agent-skill', {
+  const res = await apiFetch('/api/ai/run-agent-skill', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skillId, input }),
@@ -229,7 +238,7 @@ export async function runInstagramAgentSkill(skillId: string, input: string): Pr
 export async function uploadMedia(file: File): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch('/api/media/upload', {
+  const res = await apiFetch('/api/media/upload', {
     method: 'POST',
     body: formData,
   });
@@ -237,12 +246,12 @@ export async function uploadMedia(file: File): Promise<any> {
 }
 
 export async function fetchMediaList(): Promise<any> {
-  const res = await fetch('/api/media/list');
+  const res = await apiFetch('/api/media/list');
   return res.json();
 }
 
 export async function renameMediaItem(filename: string, newName: string): Promise<any> {
-  const res = await fetch(`/api/media/${encodeURIComponent(filename)}`, {
+  const res = await apiFetch(`/api/media/${encodeURIComponent(filename)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ newName }),
@@ -251,7 +260,7 @@ export async function renameMediaItem(filename: string, newName: string): Promis
 }
 
 export async function deleteMediaItem(filename: string): Promise<any> {
-  const res = await fetch(`/api/media/${encodeURIComponent(filename)}`, {
+  const res = await apiFetch(`/api/media/${encodeURIComponent(filename)}`, {
     method: 'DELETE',
   });
   return res.json();
@@ -263,7 +272,7 @@ export async function syncSchedulerWithServer(payload: {
   automations: any[];
   autoPublishApproved: boolean;
 }): Promise<any> {
-  const res = await fetch('/api/scheduler/sync', {
+  const res = await apiFetch('/api/scheduler/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -272,12 +281,12 @@ export async function syncSchedulerWithServer(payload: {
 }
 
 export async function fetchSchedulerState(userId: string): Promise<any> {
-  const res = await fetch(`/api/scheduler/state?userId=${encodeURIComponent(userId)}`);
+  const res = await apiFetch(`/api/scheduler/state?userId=${encodeURIComponent(userId)}`);
   return res.json();
 }
 
 export async function ackServerDrafts(userId: string): Promise<any> {
-  const res = await fetch('/api/scheduler/ack-drafts', {
+  const res = await apiFetch('/api/scheduler/ack-drafts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
@@ -286,7 +295,7 @@ export async function ackServerDrafts(userId: string): Promise<any> {
 }
 
 export async function runAutomationOnServer(rule: any): Promise<any> {
-  const res = await fetch('/api/scheduler/run-automation', {
+  const res = await apiFetch('/api/scheduler/run-automation', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rule }),
@@ -295,6 +304,6 @@ export async function runAutomationOnServer(rule: any): Promise<any> {
 }
 
 export async function triggerSchedulerTick(): Promise<any> {
-  const res = await fetch('/api/scheduler/tick', { method: 'POST' });
+  const res = await apiFetch('/api/scheduler/tick', { method: 'POST' });
   return res.json();
 }

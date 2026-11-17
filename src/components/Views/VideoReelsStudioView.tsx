@@ -42,7 +42,7 @@ export const VideoReelsStudioView: React.FC<VideoReelsStudioViewProps> = ({ onNa
   const [planError, setPlanError] = useState<string | null>(null);
   const [reelPlan, setReelPlan] = useState<any>(null);
 
-  // Real AI Video Generation state (Omni Flash)
+  // Lightweight FFmpeg scene-rendering state
   const [videoPrompt, setVideoPrompt] = useState<string>('');
   const [videoAspectRatio, setVideoAspectRatio] = useState<'9:16' | '16:9'>('9:16');
   const [videoDuration, setVideoDuration] = useState<'5s' | '10s' | '15s'>('10s');
@@ -150,8 +150,8 @@ export const VideoReelsStudioView: React.FC<VideoReelsStudioViewProps> = ({ onNa
         referenceImageUrl: referenceImageUrl || undefined,
       });
 
-      if (res.interactionId) {
-        setActiveInteractionId(res.interactionId);
+      if (res.interactionId || res.jobId) {
+        setActiveInteractionId(res.interactionId || res.jobId);
       }
 
       if (!res.success || res.status === 'failed') {
@@ -301,7 +301,7 @@ export const VideoReelsStudioView: React.FC<VideoReelsStudioViewProps> = ({ onNa
               Instagram Reels & AI Video Studio
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Synthesize async AI videos via Gemini Interactions API (gemini-omni-flash-preview), generate 9:16 Reel storyboards, or upload rendered MP4 clips.
+              Render lightweight vertical H.264/AAC scene videos with FFmpeg, generate Reel storyboards with Gemini, or upload your own MP4 clips. This is not native text-to-video.
             </p>
           </div>
         </div>
@@ -312,7 +312,7 @@ export const VideoReelsStudioView: React.FC<VideoReelsStudioViewProps> = ({ onNa
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Video className="w-4 h-4 text-pink-500" />
-            Async AI Video Generation (gemini-omni-flash-preview)
+            FFmpeg Scene Video Renderer (H.264/AAC MP4)
           </h3>
           {videoJobStatus !== 'idle' && (
             <span
@@ -431,7 +431,7 @@ export const VideoReelsStudioView: React.FC<VideoReelsStudioViewProps> = ({ onNa
 
             {activeInteractionId && videoJobStatus === 'processing' && (
               <div className="text-[11px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-1.5 break-all">
-                Polling async interaction: {activeInteractionId}
+                Polling renderer job: {activeInteractionId}
               </div>
             )}
 

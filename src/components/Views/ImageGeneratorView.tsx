@@ -28,14 +28,8 @@ export const ImageGeneratorView: React.FC<ImageGeneratorViewProps> = ({ onNaviga
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '4:5' | '9:16' | '16:9'>('1:1');
   const [stylePreset, setStylePreset] = useState<string>('Modern Dark Purple AI Aesthetic');
   const [quality, setQuality] = useState<'standard' | 'hd'>('standard');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite-image');
-  const [availableModels, setAvailableModels] = useState<string[]>([
-    'gemini-3.1-flash-lite-image',
-    'gemini-nano-banana-2.1',
-    'gemini-2.5-flash-image',
-    'gemini-3.1-flash-image',
-    'gemini-3-pro-image',
-  ]);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash-image');
+  const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.5-flash-image']);
   const [imageSize, setImageSize] = useState<'1K' | '2K'>('1K');
   const [variations, setVariations] = useState<number>(1);
   const [referenceImageUrl, setReferenceImageUrl] = useState<string>('');
@@ -87,7 +81,7 @@ export const ImageGeneratorView: React.FC<ImageGeneratorViewProps> = ({ onNaviga
       if (res?.success && Array.isArray(res.imageModels)) {
         const verified = res.imageModels
           .map((m: any) => m.id)
-          .filter((id: string) => !id.endsWith('-preview'));
+          .filter((id: string) => id === 'gemini-2.5-flash-image');
         if (verified.length > 0) {
           setAvailableModels(verified);
         }
@@ -235,7 +229,7 @@ export const ImageGeneratorView: React.FC<ImageGeneratorViewProps> = ({ onNaviga
               Instagram AI Image Generator
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Powered by Gemini 3.1 Flash Lite Image & Nano Banana 2.1 (HD) with multi-variation & reference image editing.
+              Genuine Gemini 2.5 Flash Image generation with multi-variation & reference image editing. Provider quota errors are shown explicitly; uploads remain available as a fallback workflow.
             </p>
           </div>
         </div>
@@ -274,13 +268,7 @@ export const ImageGeneratorView: React.FC<ImageGeneratorViewProps> = ({ onNaviga
                     onChange={(e) => {
                       const nextModel = e.target.value;
                       setSelectedModel(nextModel);
-                      setQuality(
-                        nextModel === 'gemini-nano-banana-2.1' ||
-                          nextModel === 'gemini-3-pro-image' ||
-                          nextModel === 'gemini-3.1-flash-image'
-                          ? 'hd'
-                          : 'standard'
-                      );
+                      setQuality('standard');
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
                   >

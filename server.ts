@@ -2,19 +2,13 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import multer from 'multer';
 import cron from 'node-cron';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import {
-  downloadFreeAistudioJob,
-  freeAistudioHealth,
-  getFreeAistudioJob,
-  persistGeneratedMedia,
-  readLocalReferenceImage,
-  submitFreeAistudioJob,
-} from './src/services/freeAistudio';
+import { createVerify } from 'node:crypto';
 
 dotenv.config();
 
@@ -22,18 +16,98 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const execFileAsync = promisify(execFile);
+const PORT = Number.parseInt(process.env.PORT || '3000', 10) || 3000;
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID?.trim() || 'sublime-ruler-kt3g1';
+
+interface FirebaseIdentity {
+  uid: string;
+  email?: string;
+}
+
+let firebaseCerts: Record<string, string> | null = null;
+let firebaseCertsExpiresAt = 0;
+
+async function getFirebaseCerts(): Promise<Record<string, string>> {
+  if (firebaseCerts && firebaseCertsExpiresAt > Date.now()) return firebaseCerts;
+
+  const response = await fetch(
+    'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com'
+  );
+  if (!response.ok) throw new Error(`Firebase certificate lookup failed with HTTP ${response.status}`);
+
+  const cacheControl = response.headers.get('cache-control') || '';
+  const maxAgeMatch = cacheControl.match(/max-age=(\d+)/i);
+  const maxAgeMs = Math.max(60_000, Number(maxAgeMatch?.[1] || 3600) * 1000);
+  firebaseCerts = (await response.json()) as Record<string, string>;
+  firebaseCertsExpiresAt = Date.now() + maxAgeMs;
+  return firebaseCerts;
+}
+
+async function verifyFirebaseIdToken(token: string): Promise<FirebaseIdentity> {
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new Error('Malformed Firebase ID token');
+
+  const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')) as { alg?: string; kid?: string };
+  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as {
+    aud?: string;
+    exp?: number;
+    iat?: number;
+    iss?: string;
+    sub?: string;
+    email?: string;
+  };
+  if (header.alg !== 'RS256' || !header.kid) throw new Error('Unsupported Firebase ID token');
+  if (
+    payload.aud !== FIREBASE_PROJECT_ID ||
+    payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}` ||
+    !payload.sub ||
+    payload.sub.length > 128 ||
+    !payload.exp ||
+    payload.exp <= Math.floor(Date.now() / 1000) ||
+    !payload.iat ||
+    payload.iat > Math.floor(Date.now() / 1000) + 300
+  ) {
+    throw new Error('Firebase ID token claims are invalid');
+  }
+
+  const cert = (await getFirebaseCerts())[header.kid];
+  if (!cert) throw new Error('Firebase signing certificate not found');
+  const verifier = createVerify('RSA-SHA256');
+  verifier.update(`${parts[0]}.${parts[1]}`);
+  verifier.end();
+  const signature = Buffer.from(parts[2], 'base64url');
+  if (!verifier.verify(cert, signature)) throw new Error('Firebase ID token signature is invalid');
+
+  return { uid: payload.sub, email: payload.email };
+}
+
+async function requireFirebaseUser(req: Request, res: Response, next: () => void) {
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  try {
+    (req as Request & { firebaseUser?: FirebaseIdentity }).firebaseUser = await verifyFirebaseIdToken(match[1]);
+    next();
+  } catch (error: any) {
+    console.error('Firebase API authentication failed:', error?.message || error);
+    return res.status(401).json({ success: false, error: 'Authentication token is invalid or expired.' });
+  }
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Ensure upload & data directories exist
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
+// Ensure upload & data directories exist. Production can mount both locations on persistent storage.
+const uploadsDir = process.env.UPLOADS_DIR?.trim() || path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-const dataDir = path.join(__dirname, 'data');
+const dataDir = process.env.DATA_DIR?.trim() || path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -176,7 +250,7 @@ async function generateTextWithFallback(
   ai: GoogleGenAI,
   params: { contents: any; config?: any }
 ): Promise<{ response: any; modelUsed: string }> {
-  const modelsToTry = ['gemini-4-hydrogen', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   let lastErr: any = null;
 
   for (let i = 0; i < modelsToTry.length; i++) {
@@ -633,6 +707,17 @@ async function submitPostToPublora(params: {
 // ----------------------------------------------------
 // SYSTEM & CONFIG STATUS
 // ----------------------------------------------------
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    ok: true,
+    service: 'autosocial-ai',
+    videoRenderer: 'ffmpeg-scene-renderer',
+    serverTime: new Date().toISOString(),
+  });
+});
+
+app.use('/api', requireFirebaseUser);
+
 app.get('/api/config/status', (_req: Request, res: Response) => {
   const publoraKey = process.env.PUBLORA_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -663,14 +748,6 @@ app.get('/api/config/status', (_req: Request, res: Response) => {
     },
     serverTime: new Date().toISOString(),
   });
-});
-
-app.get('/api/ai/free-aistudio/status', async (_req: Request, res: Response) => {
-  const [image, video] = await Promise.all([
-    freeAistudioHealth('image'),
-    freeAistudioHealth('video'),
-  ]);
-  res.json({ image, video });
 });
 
 // ----------------------------------------------------
@@ -1297,11 +1374,7 @@ Return ONLY the regenerated text for this section, with no surrounding quotes or
 
 // 4. AI Image Generator (Verified active v1beta image models)
 const SUPPORTED_IMAGE_MODELS = [
-  'gemini-3.1-flash-lite-image',
-  'gemini-nano-banana-2.1',
   'gemini-2.5-flash-image',
-  'gemini-3.1-flash-image',
-  'gemini-3-pro-image',
 ] as const;
 
 app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
@@ -1320,52 +1393,13 @@ app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: 'Prompt is required' });
   }
 
-  if (process.env.MEDIA_GENERATION_PROVIDER?.trim().toLowerCase() === 'free-aistudio') {
-    try {
-      const ratio = String(aspectRatio);
-      const dimensions: Record<string, [number, number]> = {
-        '1:1': [1024, 1024], '4:5': [768, 960], '3:4': [768, 1024],
-        '4:3': [1024, 768], '9:16': [576, 1024], '16:9': [1024, 576],
-      };
-      const [width, height] = dimensions[ratio] || dimensions['1:1'];
-      const referenceImageBase64 = readLocalReferenceImage(referenceImageUrl, uploadsDir);
-      const generated: Array<{ url: string; filename: string; mimeType: string }> = [];
-      const count = Math.min(Math.max(Number(variations) || 1, 1), 3);
-      for (let index = 0; index < count; index++) {
-        const submitted = await submitFreeAistudioJob('image', {
-          kind: 'image', prompt: `${String(prompt).trim()}. Aesthetic style: ${style}.`,
-          width, height, steps: quality === 'hd' ? 12 : 8, referenceImageBase64,
-        });
-        const deadline = Date.now() + 5 * 60 * 1000;
-        let status = await getFreeAistudioJob('image', submitted.jobId);
-        while (status.status === 'queued' || status.status === 'processing') {
-          if (Date.now() >= deadline) throw new Error('GPU image generation timed out while waiting for inference.');
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          status = await getFreeAistudioJob('image', submitted.jobId);
-        }
-        if (status.status !== 'completed') throw new Error(status.error || 'GPU image generation failed.');
-        const media = await downloadFreeAistudioJob('image', submitted.jobId);
-        generated.push(persistGeneratedMedia(media.bytes, media.mimeType, 'image', uploadsDir));
-      }
-      return res.json({
-        success: true, imageUrl: generated[0]?.url,
-        images: generated.map(({ url, filename, mimeType }) => ({ imageUrl: url, filename, mimeType })),
-        modelUsed: 'Z-Image-Turbo (free-aistudio)', endpoint: 'authenticated Kaggle GPU bridge',
-        aspectRatio: ratio, prompt,
-      });
-    } catch (error: any) {
-      console.error('Free-aistudio image generation error:', error);
-      return res.status(502).json({ success: false, error: error?.message || 'Free-aistudio image generation failed.' });
-    }
-  }
-
   const ai = getGeminiClient();
   if (!ai) {
     return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
   }
 
   const defaultModel =
-    quality === 'hd' ? 'gemini-nano-banana-2.1' : 'gemini-3.1-flash-lite-image';
+    'gemini-2.5-flash-image';
   const modelName =
     typeof requestedModel === 'string' &&
     SUPPORTED_IMAGE_MODELS.includes(requestedModel as any)
@@ -1409,13 +1443,6 @@ app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
     const imageConfig: any = {
       aspectRatio: mappedAspectRatio,
     };
-    if (
-      ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-3-pro-image'].includes(modelName) &&
-      ['1K', '2K', '4K'].includes(imageSize)
-    ) {
-      imageConfig.imageSize = imageSize;
-    }
-
     const generatedImages: Array<{ imageUrl: string; filename: string; mimeType: string }> = [];
 
     for (let i = 0; i < count; i++) {
@@ -1479,12 +1506,10 @@ app.post('/api/ai/generate-image', async (req: Request, res: Response) => {
   }
 });
 
-// 5. Real Asynchronous AI Video Generation via Gemini Interactions API (gemini-omni-flash-preview)
+// 5. Lightweight asynchronous FFmpeg scene video renderer.
 interface VideoJob {
   jobId: string;
   interactionId?: string;
-  providerJobId?: string;
-  freeAistudio?: boolean;
   modelUsed: string;
   endpoint: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
@@ -1506,284 +1531,124 @@ interface VideoJob {
 }
 
 const videoJobs = new Map<string, VideoJob>();
-const VIDEO_MODEL_ID = 'gemini-omni-flash-preview';
-const VIDEO_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/interactions (background: true)';
-
-function signMediaJobId(jobId: string) {
-  const secret = process.env.MEDIA_SESSION_SECRET?.trim() || '';
-  if (secret.length < 32) throw new Error('MEDIA_SESSION_SECRET must contain at least 32 characters.');
-  const signature = createHmac('sha256', secret).update(jobId).digest('hex');
-  return `${jobId}.${signature}`;
+function escapeDrawtext(value: string) {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/:/g, '\\:')
+    .replace(/'/g, "\\'")
+    .replace(/,/g, '\\,')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]');
 }
 
-function verifyMediaJobId(signedJobId: string): string | null {
-  const match = signedJobId.match(/^(gpu-\d+-[a-z0-9]{6})\.([a-f0-9]{64})$/);
-  const secret = process.env.MEDIA_SESSION_SECRET?.trim() || '';
-  if (!match || secret.length < 32) return null;
-  const expected = createHmac('sha256', secret).update(match[1]).digest();
-  const supplied = Buffer.from(match[2], 'hex');
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected) ? match[1] : null;
-}
+async function renderFfmpegSceneVideo(job: VideoJob) {
+  const totalSeconds = Number.parseInt(job.duration, 10);
+  const sceneCount = totalSeconds >= 10 ? 3 : 2;
+  const sceneDuration = totalSeconds / sceneCount;
+  const [width, height] = job.aspectRatio === '16:9' ? [1280, 720] : [720, 1280];
+  const colors = ['0x24104f', '0x4c164f', '0x102d55'];
+  const fontFile = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+  const text = escapeDrawtext(job.prompt.slice(0, 180));
+  const sceneFilters = colors.slice(0, sceneCount).map((color, index) => {
+    const fadeOutStart = Math.max(0, sceneDuration - 0.35).toFixed(3);
+    return `color=c=${color}:s=${width}x${height}:d=${sceneDuration.toFixed(3)},format=yuv420p,fade=t=in:st=0:d=0.25,fade=t=out:st=${fadeOutStart}:d=0.35,drawtext=fontfile=${fontFile}:text='AutoSocial AI  •  Scene ${index + 1}/${sceneCount}':fontcolor=white:fontsize=${Math.round(width / 24)}:x=(w-text_w)/2:y=h*0.28,drawtext=fontfile=${fontFile}:text='${text}':fontcolor=white:fontsize=${Math.round(width / 32)}:line_spacing=12:fix_bounds=true:x=(w-text_w)/2:y=h*0.5[v${index}]`;
+  });
+  const filterGraph = `${sceneFilters.join(';')};${sceneFilters.map((_filter, index) => `[v${index}]`).join('')}concat=n=${sceneCount}:v=1:a=0,format=yuv420p[vout]`;
+  const fileName = `ai-reel-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.mp4`;
+  const filePath = path.join(uploadsDir, fileName);
 
-function extractVideoFromInteraction(interaction: any): { data?: string; mimeType?: string; uri?: string } | null {
-  if (interaction?.output_video?.data || interaction?.output_video?.uri) {
-    return interaction.output_video;
-  }
-  const outputs = Array.isArray(interaction?.outputs) ? interaction.outputs : [];
-  for (const out of outputs) {
-    if (out?.type === 'video' && (out?.data || out?.uri)) {
-      return { data: out.data, mimeType: out.mime_type || out.mimeType, uri: out.uri };
-    }
-  }
-  return null;
-}
-
-function applyInteractionFailureToJob(job: VideoJob, interaction: any) {
-  const firstErr = Array.isArray(interaction?.errors) && interaction.errors[0];
-  const rawErrMsg = firstErr
-    ? `${firstErr.code || 'INTERACTION_FAILED'}: ${firstErr.message || 'Interaction failed'}`
-    : `Gemini Omni interaction ${interaction?.id || ''} ended with status "${interaction?.status || 'failed'}"`;
-  const errInfo = parseGeminiError(
-    {
-      status: firstErr?.code === 'RESOURCE_EXHAUSTED' ? 429 : 500,
-      message: rawErrMsg,
-    },
-    { modelUsed: job.modelUsed, endpoint: job.endpoint }
+  await execFileAsync(
+    'ffmpeg',
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'anullsrc=channel_layout=stereo:sample_rate=48000',
+      '-filter_complex',
+      filterGraph,
+      '-map',
+      '[vout]',
+      '-map',
+      '0:a',
+      '-t',
+      String(totalSeconds),
+      '-r',
+      '30',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'veryfast',
+      '-pix_fmt',
+      'yuv420p',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-movflags',
+      '+faststart',
+      filePath,
+    ],
+    { timeout: 180_000, maxBuffer: 2 * 1024 * 1024 }
   );
-  job.status = 'failed';
-  job.httpStatus = errInfo.httpStatus;
-  job.errorCode = firstErr?.code || errInfo.errorCode;
-  job.error = errInfo.error;
-  job.rawError = errInfo.rawError;
-  job.isQuotaOrModelLimit = errInfo.isQuotaOrModelLimit;
-  job.requiresPaidKey = errInfo.requiresPaidKey;
-  job.suggestion = errInfo.suggestion;
+
+  job.status = 'completed';
+  job.httpStatus = 200;
+  job.videoUrl = `/uploads/${fileName}`;
+  job.filename = fileName;
   job.updatedAt = new Date().toISOString();
 }
 
 app.post('/api/ai/generate-video', async (req: Request, res: Response) => {
-  const {
-    prompt,
-    aspectRatio = '9:16',
-    duration = '10s',
-    resolution = '720p',
-    referenceImageUrl,
-  } = req.body || {};
-
+  const { prompt, aspectRatio = '9:16', duration = '10s', resolution = '720p' } = req.body || {};
   if (!prompt || !String(prompt).trim()) {
     return res.status(400).json({ success: false, error: 'Video prompt is required' });
   }
 
   const validAspect = aspectRatio === '16:9' ? '16:9' : '9:16';
-  const validDuration = ['5s', '8s', '10s', '15s'].includes(duration) ? duration : '10s';
-  const validRes = ['360p', '720p', '1080p'].includes(resolution) ? resolution : '720p';
-
-  if (process.env.MEDIA_GENERATION_PROVIDER?.trim().toLowerCase() === 'free-aistudio') {
-    if (validDuration === '15s') {
-      return res.status(400).json({ success: false, error: 'LTX-Video 2.3 in this Kaggle workflow supports up to 10 seconds per generation.' });
-    }
-    if ((process.env.MEDIA_SESSION_SECRET?.trim() || '').length < 32) {
-      return res.status(500).json({ success: false, error: 'MEDIA_SESSION_SECRET must be set to a random value of at least 32 characters before video generation.' });
-    }
-    try {
-      const referenceImageBase64 = readLocalReferenceImage(referenceImageUrl, uploadsDir);
-      const providerJob = await submitFreeAistudioJob('video', {
-        kind: 'video', prompt: String(prompt).trim(),
-        width: validAspect === '9:16' ? 288 : 512,
-        height: validAspect === '9:16' ? 512 : 288,
-        durationSeconds: Number.parseInt(validDuration, 10),
-        steps: 8, referenceImageBase64,
-      });
-      const internalJobId = `gpu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const jobId = signMediaJobId(internalJobId);
-      const job: VideoJob = {
-        jobId, providerJobId: providerJob.jobId, freeAistudio: true,
-        modelUsed: 'LTX-Video 2.3 (free-aistudio)', endpoint: 'authenticated Kaggle GPU bridge',
-        status: providerJob.status === 'processing' ? 'processing' : 'queued',
-        prompt: String(prompt).trim(), aspectRatio: validAspect, duration: validDuration,
-        resolution: 'Kaggle GPU native output', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      };
-      videoJobs.set(internalJobId, job);
-      return res.status(202).json({ success: true, ...job });
-    } catch (error: any) {
-      console.error('Free-aistudio video submission error:', error);
-      return res.status(502).json({ success: false, error: error?.message || 'Could not submit LTX-Video 2.3 job.' });
-    }
-  }
-
-  const ai = getGeminiClient();
-  if (!ai) {
-    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing' });
-  }
-
-  const jobId = `vid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const validDuration = ['5s', '10s', '15s'].includes(duration) ? duration : '10s';
+  const jobId = `ffmpeg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const job: VideoJob = {
     jobId,
-    modelUsed: VIDEO_MODEL_ID,
-    endpoint: VIDEO_ENDPOINT,
+    modelUsed: 'FFmpeg scene renderer',
+    endpoint: 'local ffmpeg binary',
     status: 'queued',
-    prompt,
+    prompt: String(prompt).trim(),
     aspectRatio: validAspect,
     duration: validDuration,
-    resolution: validRes,
+    resolution: resolution === '1080p' ? '720p (renderer output)' : resolution,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
   videoJobs.set(jobId, job);
 
-  let inputPayload: any = prompt;
-  if (referenceImageUrl && typeof referenceImageUrl === 'string' && referenceImageUrl.startsWith('/uploads/')) {
-    const refPath = path.join(uploadsDir, path.basename(referenceImageUrl));
-    if (fs.existsSync(refPath)) {
-      const buf = fs.readFileSync(refPath);
-      inputPayload = [
-        {
-          type: 'image',
-          mime_type: getMimeFromFilename(refPath),
-          data: buf.toString('base64'),
-        },
-        {
-          type: 'text',
-          text: prompt,
-        },
-      ];
-    }
-  }
-
-  const runPromise = (async () => {
+  void (async () => {
+    job.status = 'processing';
+    job.updatedAt = new Date().toISOString();
     try {
-      job.status = 'processing';
-      job.updatedAt = new Date().toISOString();
-
-      // Official async Interactions workflow: background: true + store: true + poll interactions.get()
-      let interaction: any = await ai.interactions.create(
-        {
-          model: VIDEO_MODEL_ID,
-          input: inputPayload,
-          background: true,
-          store: true,
-          stream: false,
-          response_format: {
-            type: 'video',
-            aspect_ratio: validAspect,
-            duration: validDuration,
-            resolution: validRes,
-          } as any,
-        },
-        { timeout: 30000 }
-      );
-
-      job.interactionId = interaction.id;
-      job.updatedAt = new Date().toISOString();
-
-      const maxPolls = 60; // Up to 3 minutes (3s interval)
-      for (let attempt = 0; attempt < maxPolls; attempt++) {
-        if (interaction.status === 'completed') {
-          const videoPart = extractVideoFromInteraction(interaction);
-          if (videoPart?.data) {
-            const fileName = `ai-reel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.mp4`;
-            const filePath = path.join(uploadsDir, fileName);
-            fs.writeFileSync(filePath, Buffer.from(videoPart.data, 'base64'));
-            job.status = 'completed';
-            job.httpStatus = 200;
-            job.videoUrl = `/uploads/${fileName}`;
-            job.filename = fileName;
-            job.updatedAt = new Date().toISOString();
-            return job;
-          }
-          if (videoPart?.uri) {
-            job.status = 'completed';
-            job.httpStatus = 200;
-            job.videoUrl = videoPart.uri;
-            job.updatedAt = new Date().toISOString();
-            return job;
-          }
-          job.status = 'failed';
-          job.httpStatus = 422;
-          job.errorCode = 'EMPTY_OUTPUT';
-          job.error = 'Gemini Omni interaction completed without returning video bytes or URI.';
-          job.updatedAt = new Date().toISOString();
-          return job;
-        }
-
-        if (interaction.status === 'failed' || interaction.status === 'cancelled') {
-          applyInteractionFailureToJob(job, interaction);
-          return job;
-        }
-
-        await new Promise((r) => setTimeout(r, attempt === 0 ? 1500 : 3000));
-        interaction = await ai.interactions.get(job.interactionId!);
-      }
-
-      job.status = 'failed';
-      job.httpStatus = 504;
-      job.errorCode = 'TIMEOUT';
-      job.error = 'Gemini Omni video generation timed out while polling interaction status.';
-      job.updatedAt = new Date().toISOString();
-      return job;
+      await renderFfmpegSceneVideo(job);
     } catch (error: any) {
-      const errInfo = parseGeminiError(error, { modelUsed: VIDEO_MODEL_ID, endpoint: VIDEO_ENDPOINT });
       job.status = 'failed';
-      job.httpStatus = errInfo.httpStatus;
-      job.errorCode = errInfo.errorCode;
-      job.error = errInfo.error;
-      job.rawError = errInfo.rawError;
-      job.isQuotaOrModelLimit = errInfo.isQuotaOrModelLimit;
-      job.requiresPaidKey = errInfo.requiresPaidKey;
-      job.suggestion = errInfo.suggestion;
+      job.httpStatus = 500;
+      job.errorCode = 'FFMPEG_RENDER_FAILED';
+      job.error = error?.message || 'FFmpeg scene rendering failed.';
+      job.suggestion = 'Try a shorter prompt or upload an MP4 directly to the Media Library.';
       job.updatedAt = new Date().toISOString();
-      return job;
+      console.error('FFmpeg video render failed:', error);
     }
   })();
 
-  // Wait up to 3.5s so immediate quota/auth failures fail directly with accurate HTTP status & errors
-  const fastResult = await Promise.race([
-    runPromise.then((finished) => ({ done: true, job: finished })),
-    new Promise<{ done: false; job: VideoJob }>((resolve) =>
-      setTimeout(() => resolve({ done: false, job }), 3500)
-    ),
-  ]);
-
-  if (fastResult.done && fastResult.job.status === 'failed') {
-    return res.status(fastResult.job.httpStatus || 500).json({
-      success: false,
-      ...fastResult.job,
-    });
-  }
-
-  return res.status(fastResult.job.status === 'completed' ? 200 : 202).json({
-    success: true,
-    ...fastResult.job,
-  });
+  return res.status(202).json({ success: true, ...job });
 });
 
 app.get('/api/ai/video-status/:jobId', async (req: Request, res: Response) => {
   const providedJobId = req.params.jobId;
-  const lookupId = providedJobId.startsWith('gpu-') ? verifyMediaJobId(providedJobId) : providedJobId;
-  if (!lookupId) {
-    return res.status(401).json({ success: false, error: 'Video media session signature is invalid or expired.' });
-  }
-  const job = videoJobs.get(lookupId);
+  const job = videoJobs.get(providedJobId);
   if (!job) {
     return res.status(404).json({ success: false, error: 'Video job not found' });
-  }
-  if (job.freeAistudio && job.providerJobId) {
-    try {
-      const provider = await getFreeAistudioJob('video', job.providerJobId);
-      job.status = provider.status;
-      job.updatedAt = new Date().toISOString();
-      if (provider.status === 'failed') {
-        job.error = provider.error || 'LTX-Video 2.3 inference failed.';
-      } else if (provider.status === 'completed' && !job.videoUrl) {
-        const media = await downloadFreeAistudioJob('video', job.providerJobId);
-        const saved = persistGeneratedMedia(media.bytes, media.mimeType, 'video', uploadsDir);
-        job.videoUrl = saved.url;
-        job.filename = saved.filename;
-      }
-    } catch (error: any) {
-      return res.status(503).json({ success: false, ...job, error: error?.message || 'GPU service status is temporarily unavailable.' });
-    }
   }
   return res.json({ success: job.status !== 'failed', ...job });
 });
@@ -2051,10 +1916,9 @@ Return valid JSON: { "title": string, "hook": string, "caption": string, "hashta
 }
 
 app.post('/api/scheduler/sync', (req: Request, res: Response) => {
-  const { userId, posts = [], automations = [], autoPublishApproved = false } = req.body || {};
-  if (!userId) {
-    return res.status(400).json({ success: false, error: 'userId is required' });
-  }
+  const userId = (req as Request & { firebaseUser?: FirebaseIdentity }).firebaseUser?.uid;
+  const { posts = [], automations = [], autoPublishApproved = false } = req.body || {};
+  if (!userId) return res.status(401).json({ success: false, error: 'Authenticated user is required.' });
 
   const store = loadSchedulerStore();
 
@@ -2140,7 +2004,7 @@ app.post('/api/scheduler/sync', (req: Request, res: Response) => {
 });
 
 app.get('/api/scheduler/state', (req: Request, res: Response) => {
-  const userId = String(req.query.userId || '');
+  const userId = (req as Request & { firebaseUser?: FirebaseIdentity }).firebaseUser?.uid || '';
   const store = loadSchedulerStore();
   return res.json({
     success: true,
@@ -2157,7 +2021,8 @@ app.get('/api/scheduler/state', (req: Request, res: Response) => {
 });
 
 app.post('/api/scheduler/ack-drafts', (req: Request, res: Response) => {
-  const { userId } = req.body || {};
+  const userId = (req as Request & { firebaseUser?: FirebaseIdentity }).firebaseUser?.uid;
+  if (!userId) return res.status(401).json({ success: false, error: 'Authenticated user is required.' });
   const store = loadSchedulerStore();
   store.generatedDrafts = store.generatedDrafts.filter((d) => d.userId !== userId);
   saveSchedulerStore(store);
@@ -2165,13 +2030,15 @@ app.post('/api/scheduler/ack-drafts', (req: Request, res: Response) => {
 });
 
 app.post('/api/scheduler/run-automation', async (req: Request, res: Response) => {
+  const userId = (req as Request & { firebaseUser?: FirebaseIdentity }).firebaseUser?.uid;
   const { rule } = req.body || {};
   if (!rule || !rule.name) {
     return res.status(400).json({ success: false, error: 'Automation rule payload required' });
   }
+  const authenticatedRule = { ...rule, userId };
 
   try {
-    const result = await executeAutomationOnServer(rule);
+    const result = await executeAutomationOnServer(authenticatedRule);
     return res.json({
       success: true,
       summary: result.summary,
@@ -2185,6 +2052,32 @@ app.post('/api/scheduler/run-automation', async (req: Request, res: Response) =>
 });
 
 let isSchedulerRunning = false;
+
+function getScheduledLocalParts(date: Date, timezone?: string) {
+  const timeZone = timezone || 'UTC';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return {
+      dateKey: `${values.year}-${values.month}-${values.day}`,
+      hhmm: `${values.hour}:${values.minute}`,
+    };
+  } catch {
+    return {
+      dateKey: date.toISOString().slice(0, 10),
+      hhmm: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+    };
+  }
+}
+
 async function runSchedulerTick() {
   if (isSchedulerRunning) return;
   isSchedulerRunning = true;
@@ -2253,17 +2146,15 @@ async function runSchedulerTick() {
     }
 
     // 2. Check scheduled automation rules matching current HH:MM
-    const todayKey = now.toISOString().slice(0, 10);
-    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
     for (const rule of store.automations) {
+      const localParts = getScheduledLocalParts(now, rule.timezone);
       if (
         rule.isEnabled &&
         rule.triggerType === 'schedule' &&
-        rule.timeOfDay === hhmm &&
-        rule.lastRunDate !== todayKey
+        rule.timeOfDay === localParts.hhmm &&
+        rule.lastRunDate !== localParts.dateKey
       ) {
-        rule.lastRunDate = todayKey;
+        rule.lastRunDate = localParts.dateKey;
         try {
           const outcome = await executeAutomationOnServer(rule);
           rule.executionCount = (rule.executionCount || 0) + 1;

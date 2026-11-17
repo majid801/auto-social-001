@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Settings,
   Key,
@@ -11,7 +11,6 @@ import {
   Clock,
   Save,
   Check,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -40,22 +39,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [gpuStatus, setGpuStatus] = useState<any>({ loading: true });
-
-  const refreshGPUStatus = async () => {
-    setGpuStatus((current: any) => ({ ...current, loading: true }));
-    try {
-      const response = await fetch('/api/ai/free-aistudio/status');
-      setGpuStatus({ ...(await response.json()), loading: false });
-    } catch {
-      setGpuStatus({ loading: false, error: 'AutoSocial server could not check the GPU bridge.' });
-    }
-  };
-
-  useEffect(() => {
-    void refreshGPUStatus();
-  }, []);
-
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -92,39 +75,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-cyan-500" />
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Free GPU Image & Video Generation</h3>
-          </div>
-          <button type="button" onClick={refreshGPUStatus} disabled={gpuStatus.loading} className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold disabled:opacity-50">
-            {gpuStatus.loading ? 'Checking…' : 'Check services'}
-          </button>
+      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-cyan-500" />
+          <h3 className="font-bold text-slate-900 dark:text-white text-base">Media generation capabilities</h3>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-          Image and video inference run in separate Kaggle GPU sessions. Service URLs and bearer tokens stay on the AutoSocial server and are never displayed here. Kaggle sessions are temporary and depend on account GPU availability.
+          Genuine image generation uses the configured Gemini 2.5 Flash Image API and reports provider quota or permission failures without creating a fake AI result. Video Studio renders captioned scene videos locally with FFmpeg as H.264/AAC MP4; it does not claim native text-to-video generation.
         </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {(['image', 'video'] as const).map((kind) => {
-            const service = gpuStatus[kind];
-            const ready = service?.ready === true;
-            return (
-              <div key={kind} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between gap-2">
-                  <strong className="text-xs text-slate-800 dark:text-slate-200">{kind === 'image' ? 'Z-Image-Turbo' : 'LTX-Video 2.3'}</strong>
-                  <span className={`text-[10px] font-semibold ${ready ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    {gpuStatus.loading ? 'Checking' : ready ? 'Ready' : 'Unavailable'}
-                  </span>
-                </div>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{service?.message || gpuStatus.error || 'GPU notebook service has not been configured.'}</p>
-              </div>
-            );
-          })}
-        </div>
-        <a href="https://github.com/majid801/auto-social-001/blob/main/kaggle/README.md" target="_blank" rel="noopener noreferrer" className="inline-flex text-xs text-cyan-600 dark:text-cyan-400 underline font-semibold">
-          Kaggle GPU connection guide
-        </a>
       </div>
 
       {/* Publora API Key Status Card (Part 3 Requirement) */}
