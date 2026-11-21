@@ -708,10 +708,35 @@ async function submitPostToPublora(params: {
 // SYSTEM & CONFIG STATUS
 // ----------------------------------------------------
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.status(200).json({
-    ok: true,
+  const geminiConfigured = Boolean(
+    process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY.trim().length > 0 &&
+      process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
+  );
+  const publoraConfigured = Boolean(
+    process.env.PUBLORA_API_KEY && process.env.PUBLORA_API_KEY.trim().length > 0
+  );
+  const storageReady = [dataDir, uploadsDir].every((directory) => {
+    try {
+      fs.accessSync(directory, fs.constants.R_OK | fs.constants.W_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const schedulerStoreReady = fs.existsSync(schedulerStorePath) || storageReady;
+
+  res.status(storageReady && schedulerStoreReady ? 200 : 503).json({
+    ok: storageReady && schedulerStoreReady,
     service: 'autosocial-ai',
-    videoRenderer: 'ffmpeg-scene-renderer',
+    dependencies: {
+      firebase: { configured: Boolean(FIREBASE_PROJECT_ID) },
+      gemini: { configured: geminiConfigured },
+      publora: { configured: publoraConfigured },
+      ffmpeg: { configured: true, renderer: 'ffmpeg-scene-renderer' },
+      storage: { ready: storageReady },
+      scheduler: { ready: schedulerStoreReady },
+    },
     serverTime: new Date().toISOString(),
   });
 });
