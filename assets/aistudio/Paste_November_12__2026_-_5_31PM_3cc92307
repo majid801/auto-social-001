@@ -1,0 +1,1291 @@
+# AUTOSOCIAL AI
+## MASTER PROMPT FOR GOOGLE AI STUDIO
+### Complete Instagram-Only AI Social Media Automation Platform
+
+You are acting as a senior full-stack software engineer, AI engineer, backend architect, UI/UX designer, database engineer, API integration specialist, and software tester.
+
+Your responsibility is to design, develop, test, and deploy my complete application named **AutoSocial AI**.
+
+I do not want a basic website, UI prototype, static dashboard, or demonstration project. I want a fully functional, professional Instagram automation platform with real backend integrations, AI content generation, account management, scheduling, automated publishing, media management, and an advanced user interface.
+
+You must implement the actual application, not just explain how to build it.
+
+Work carefully, inspect your changes, run the application, identify errors, fix them, and verify the final deployment.
+
+---
+
+# PART 1 — MY PROJECT BACKGROUND
+
+I previously developed a project called AutoSocial AI using another AI development platform called Manus.
+
+The previous application was published at:
+
+https://autosoc-iukjcvty.manus.space
+
+The previous project was located in:
+
+/home/ubuntu/autosoc
+
+The previous published commit was:
+
+e0de48fcb74de3055abbd5bf2e38bea0eb535018
+
+However, I no longer have access to the previous Manus account, source ZIP, or original project files.
+
+The original source code could not be recovered.
+
+The previous Manus account reported that it had implemented:
+
+- Responsive dashboard.
+- Accounts page.
+- Content Studio.
+- Content calendar.
+- Media library.
+- Automation section.
+- Analytics section.
+- Inbox.
+- Settings.
+- Server-side authentication.
+- Database storage.
+- Publora API integration.
+- Gemini integration.
+- Media upload infrastructure.
+- Publishing submission protection.
+- Database migrations.
+
+It also reported that TypeScript checks, production build, and 29 unit tests passed.
+
+However, the previous application was not fully verified. Gemini generation and live media upload were not tested end to end. Its final public deployment verification was inconclusive.
+
+Therefore, do not assume that the previous application is fully functional.
+
+I no longer have its source files. You must treat the previous public website as a reference only.
+
+Previous website:
+
+https://autosoc-iukjcvty.manus.space
+
+Try to inspect it if it is publicly accessible.
+
+You may study its existing layout, branding, navigation, and visible features. However, do not claim that you have recovered its original source code.
+
+If the website cannot be accessed, continue using the specifications in this prompt.
+
+**IMPORTANT: I am authorising you to build a fresh, complete AutoSocial AI application based on this specification because the previous source code is unavailable. Do not waste time looking for files that I no longer possess.**
+
+---
+
+# PART 2 — PROJECT OBJECTIVE
+
+Build AutoSocial AI as an advanced, professional, Instagram-only automation SaaS website.
+
+The platform must help a user manage the complete Instagram content workflow from one application.
+
+The main workflow should be:
+
+1. Connect an Instagram account through Publora.
+2. Retrieve the actual connected account.
+3. Enter a content idea or instruction.
+4. Generate content using Gemini.
+5. Generate images where an available image-generation model supports it.
+6. Create Reel scripts and video assets where generation is available.
+7. Edit captions, hashtags, scripts, and media.
+8. Save content as drafts.
+9. Preview content before publishing.
+10. Approve content.
+11. Schedule content.
+12. Automatically publish approved content through Publora.
+13. Retrieve publishing status.
+14. Review real available analytics.
+15. Manage future content through automated workflows.
+
+The user interface must support Instagram only.
+
+Do not add any other social platforms.
+
+---
+
+# PART 3 — IMPORTANT: PUBLORA API KEY SETUP
+
+Publora is my required publishing provider.
+
+I already created a Publora account and connected my Instagram account through the Publora dashboard.
+
+The earlier application displayed Instagram as connected.
+
+I want to use the same Publora publishing service in this new application.
+
+You must implement the integration with the official Publora API.
+
+Official documentation:
+
+https://docs.publora.com/
+
+API documentation:
+
+https://docs.publora.com/README
+
+Base API URL:
+
+https://api.publora.com/api/v1
+
+Authentication uses the following HTTP header:
+
+x-publora-key
+
+## Request my Publora API key
+
+Before testing the real Publora integration, ask me to configure my Publora API key.
+
+Use Google AI Studio's Settings → Secrets facility.
+
+Create a secret with this exact name:
+
+PUBLORA_API_KEY
+
+When the secret is missing, clearly ask me to add it.
+
+Do not ask me to paste the key into frontend code, public chat messages, browser storage, or source files.
+
+Do not display the secret value in logs or application screens.
+
+After I configure the secret, continue with live API verification.
+
+Do not stop development of unrelated features while waiting for the key. Build the integration, its configuration screen, error handling, and all other features first. Then request the key when live Publora verification is needed.
+
+The Gemini API key should use Google AI Studio's automatically configured server-side GEMINI_API_KEY secret. If it is missing, tell me how to configure it through the Secrets panel.
+
+Never expose any API key in browser JavaScript.
+
+---
+
+# PART 4 — REAL INSTAGRAM CONNECTION
+
+Use Publora to retrieve the Instagram account that I have already connected.
+
+Do not create a fake connected account.
+
+Do not display a hardcoded connected badge.
+
+Implement:
+
+- Retrieve connected accounts.
+- Identify Instagram accounts.
+- Display actual Instagram username.
+- Display account ID when available.
+- Display profile image when available.
+- Display real connection status.
+- Display authorization/token status where provided.
+- Display publishing capabilities.
+- Display provider plan information when available.
+- Display connection verification time.
+- Provide a refresh connection button.
+- Handle expired authorization.
+- Handle disconnected accounts.
+- Handle API errors.
+- Provide reconnect instructions.
+
+Use the actual Publora connection returned by its API.
+
+The account should be considered connected only when the backend successfully verifies it.
+
+If no account is returned, show the correct empty state.
+
+If authentication fails, show a useful error.
+
+Do not invent an account ID, username, profile image, or connection status.
+
+Remember that connecting the Instagram account is performed through the Publora dashboard. Do not ask for my Instagram password.
+
+---
+
+# PART 5 — INSTAGRAM-ONLY REQUIREMENT
+
+This is a dedicated Instagram automation application.
+
+Include Instagram only.
+
+Do not include:
+
+- Facebook.
+- LinkedIn.
+- TikTok.
+- YouTube.
+- Pinterest.
+- X/Twitter.
+- Threads.
+- Other social platforms.
+
+Remove unrelated social platform options from the user interface.
+
+Keep the application focused on Instagram content, Instagram media, Instagram scheduling, and Instagram publishing.
+
+---
+
+# PART 6 — COMPLETE AI CONTENT STUDIO
+
+Create an advanced AI Content Studio.
+
+The user must be able to enter an instruction such as:
+
+"Create an Instagram Reel about artificial intelligence and its benefits for students."
+
+Gemini should generate a complete content package.
+
+Include:
+
+- Content idea.
+- Content title.
+- Hook.
+- Caption.
+- Hashtags.
+- Call to action.
+- Reel script.
+- Scene-by-scene breakdown.
+- Voiceover.
+- Subtitle text.
+- Suggested visual style.
+- Suggested background music description.
+- Suggested content duration.
+- Suggested posting time.
+
+Provide content formats:
+
+1. Instagram Reels.
+2. Instagram image posts.
+3. Instagram carousels.
+4. Instagram Stories.
+5. Instagram videos.
+
+Provide customisation options:
+
+- Content category.
+- Target audience.
+- Language.
+- Writing tone.
+- Content length.
+- Visual style.
+- Number of hashtags.
+- Caption style.
+- CTA style.
+- Topic.
+- Brand voice.
+
+Add the following functionality:
+
+- Generate content.
+- Regenerate complete content.
+- Regenerate an individual section.
+- Edit generated content.
+- Copy caption.
+- Copy hashtags.
+- Save draft.
+- Duplicate draft.
+- Delete draft.
+- Preview content.
+- Send approved content to the publishing calendar.
+
+Use Gemini through server-side API calls.
+
+Do not fabricate successful generation responses.
+
+---
+
+# PART 7 — AI IMAGE GENERATOR
+
+Build a dedicated Instagram Image Generator.
+
+The user should be able to describe an image using natural language.
+
+Example:
+
+"Create a premium Instagram design about AI engineering with a modern dark purple background."
+
+Include:
+
+- Image prompt input.
+- Image aspect ratio selection.
+- Instagram post dimensions.
+- Portrait dimensions.
+- Square dimensions.
+- Landscape dimensions where supported.
+- Generate image.
+- Multiple variations where supported.
+- Image preview.
+- Regenerate.
+- Download.
+- Save to media library.
+- Edit prompt.
+- Image history.
+- Generation status.
+- Error details.
+
+Use genuine image-generation capabilities available through the Gemini API.
+
+Inspect current image-generation model availability and use a supported model. Do not assume that a text-only model can generate images.
+
+The user wants free-first operation.
+
+Use available free quotas where available. Do not claim unlimited free image generation.
+
+If the user's current model or account does not permit image generation, explain that limitation and provide the option to upload an image.
+
+Never display fake generated images as actual output.
+
+---
+
+# PART 8 — AI VIDEO AND INSTAGRAM REELS STUDIO
+
+Create an advanced Video and Reels Studio.
+
+The user should be able to provide a topic and generate a complete Reel plan.
+
+Example:
+
+"Create a 30-second Instagram Reel explaining five AI tools that students should know."
+
+Generate:
+
+- Reel title.
+- Opening hook.
+- Complete script.
+- Scene descriptions.
+- Scene-by-scene visual prompts.
+- Voiceover script.
+- Subtitle text.
+- Background music suggestion.
+- Transition suggestions.
+- Ending CTA.
+- Suggested duration.
+- Video aspect ratio.
+
+Include:
+
+- Video generation where an available model supports it.
+- Video prompt editor.
+- Generate video.
+- Video progress.
+- Video preview.
+- Download.
+- Save to library.
+- Upload external video.
+- Video history.
+
+Use genuine video-generation capabilities available through the Gemini API and Google AI Studio environment.
+
+Do not assume that an internal AI Studio interface feature is automatically available as a runtime API to the deployed website.
+
+Verify the actual supported API and model first.
+
+If video generation is unavailable or requires a paid quota:
+
+- Build the complete Reel script and storyboard workflow.
+- Allow the user to upload an existing video.
+- Display the actual generation limitation.
+- Do not pretend a video was generated.
+
+Show these statuses:
+
+- Queued.
+- Processing.
+- Completed.
+- Failed.
+
+---
+
+# PART 9 — AUTOMATION CENTRE
+
+Create an advanced Automation Centre.
+
+This must be a real working section, not a collection of inactive buttons.
+
+The user should be able to create automation workflows.
+
+Examples:
+
+### Automation 1: Daily content ideas
+Generate new Instagram content ideas every day.
+
+### Automation 2: Weekly content planning
+Generate a complete seven-day Instagram content calendar.
+
+### Automation 3: Automatic caption generation
+Generate captions and hashtags for saved drafts.
+
+### Automation 4: Reel script generation
+Automatically prepare scripts for selected topics.
+
+### Automation 5: Approved automatic publishing
+Publish approved content at its scheduled time through Publora.
+
+### Automation 6: Category-based content
+Generate content based on a selected category.
+
+### Automation 7: Special-day content
+Prepare content for upcoming events and special days.
+
+### Automation 8: Weekly reporting
+Generate a weekly content performance report using actual available data.
+
+Every automation must have:
+
+- Automation name.
+- Description.
+- Trigger.
+- Frequency.
+- Start date.
+- Timezone.
+- Enabled/disabled status.
+- Last execution.
+- Next execution.
+- Execution history.
+- Error information.
+- Pause button.
+- Resume button.
+- Edit button.
+- Delete button.
+
+Automation execution must happen server-side or through a reliable background scheduling system.
+
+Do not depend on the user's browser being open.
+
+Prevent duplicate execution.
+
+Record every automation execution.
+
+Display actual execution results.
+
+Do not show a workflow as completed when it failed.
+
+---
+
+# PART 10 — APPROVED AUTOMATIC INSTAGRAM PUBLISHING
+
+This is one of the most important features.
+
+I want the application to publish approved Instagram content automatically through Publora.
+
+The publishing workflow must be:
+
+1. User creates content.
+2. Gemini generates text.
+3. User selects or uploads media.
+4. Application validates content and media.
+5. User previews the post.
+6. User saves it as a draft or approves it.
+7. User schedules the content or chooses Publish Now.
+8. Backend checks account connection and provider limits.
+9. Backend submits the post through Publora.
+10. Application stores the provider submission ID.
+11. Application retrieves publishing status.
+12. Application displays the real publishing result.
+
+Provide:
+
+- Publish Now.
+- Schedule Post.
+- Edit Scheduled Post where supported.
+- Cancel Scheduled Post where supported.
+- Publishing History.
+- Failed Posts.
+- Retry Failed Post when safe.
+- Publishing Logs.
+- Publishing Error Details.
+- Provider Status.
+- Timezone Selection.
+- Duplicate Submission Protection.
+
+## Approved automatic publishing
+
+Create a dedicated setting:
+
+Enable Automatic Publishing of Approved Content.
+
+When enabled, the system may publish content only if it has already been approved by the user or explicitly included in a user-approved automatic publishing rule.
+
+Unapproved content must never be published.
+
+Never publish a real test post without my explicit permission.
+
+Do not report publishing success merely because the request was sent.
+
+Mark a post as published only after the provider confirms publication.
+
+Use provider submission IDs, idempotency support, and status reconciliation.
+
+---
+
+# PART 11 — ADVANCED CONTENT CALENDAR
+
+Create a professional Instagram Content Calendar.
+
+Provide:
+
+- Monthly view.
+- Weekly view.
+- Daily view.
+- List view.
+
+Show:
+
+- Drafts.
+- Awaiting approval.
+- Scheduled posts.
+- Published posts.
+- Failed posts.
+
+Include:
+
+- Create post.
+- Edit post.
+- Preview.
+- Drag and drop rescheduling.
+- Date selection.
+- Time selection.
+- Timezone selection.
+- Filter by content type.
+- Filter by status.
+- Delete where safe.
+- Cancel scheduled post where supported.
+
+Calendar entries must come from actual stored content records.
+
+Do not use fake calendar entries.
+
+---
+
+# PART 12 — MEDIA LIBRARY
+
+Create a professional Media Library.
+
+Support:
+
+- Uploaded images.
+- Uploaded videos.
+- Generated images.
+- Generated videos.
+- Reel assets.
+- Carousel images.
+- Story assets.
+
+Features:
+
+- Search.
+- Filter.
+- Sort.
+- Preview.
+- Rename.
+- Delete.
+- Download.
+- File size.
+- Upload date.
+- Media type.
+- Storage status.
+
+Validate:
+
+- File type.
+- File extension.
+- File signature.
+- Maximum allowed size.
+- Upload success.
+- Storage existence.
+
+Never display a success message until the file has actually been stored and verified.
+
+---
+
+# PART 13 — ANALYTICS DASHBOARD
+
+Create an Instagram Analytics section.
+
+Display only real available data.
+
+Possible analytics:
+
+- Followers.
+- Follower growth.
+- Reach.
+- Impressions.
+- Engagement.
+- Likes.
+- Comments.
+- Shares.
+- Saves.
+- Reel views.
+- Profile visits.
+- Top-performing content.
+
+Date filters:
+
+- Last 7 days.
+- Last 30 days.
+- Last 90 days.
+- Custom period.
+
+Use Recharts if compatible.
+
+IMPORTANT PROVIDER LIMITATION:
+
+Do not assume that Publora provides Instagram analytics.
+
+Verify the current official API documentation and actual endpoints.
+
+If a metric is not available through Publora, show:
+
+"Not available through the connected provider."
+
+If you implement a separate official Instagram Graph API integration, do so only when the required access, account type, Meta application credentials, and permissions have been configured.
+
+Do not request unnecessary Meta credentials.
+
+Do not scrape Instagram pages.
+
+Never invent analytics data.
+
+Distinguish zero values from unavailable metrics.
+
+---
+
+# PART 14 — INSTAGRAM INBOX AND COMMENT MANAGEMENT
+
+Create the interface for Instagram comments and messages.
+
+Where genuine official API access and permissions are available, support:
+
+- Comment retrieval.
+- Reply to comments.
+- Message retrieval.
+- Reply to messages.
+- Conversation history.
+- Unread messages.
+- Search.
+- Filters.
+- Gemini reply suggestions.
+
+IMPORTANT:
+
+Do not assume Publora provides Instagram inbox, comment, or direct-message functionality.
+
+Verify provider documentation.
+
+If the current Publora integration cannot provide these features, mark them unavailable until an official supported integration is configured.
+
+Do not use scraping, password automation, CAPTCHA bypass, or unauthorized browser automation.
+
+Do not create spam or bulk unsolicited messaging.
+
+---
+
+# PART 15 — INSTAGRAM AGENT SKILLS
+
+Use the following open-source project as a possible source of Instagram content workflows:
+
+https://github.com/Jakeschincariol/instagram-agent-skill
+
+Inspect its code, actual licence, dependencies, and compatibility before using it.
+
+Skills to consider:
+
+1. ig-audit.
+2. ig-caption.
+3. ig-carousel.
+4. ig-comment.
+5. ig-dm.
+6. ig-human.
+7. ig-plan.
+8. ig-profile.
+9. ig-reel.
+10. ig-reply.
+11. ig-repurpose.
+12. ig-story.
+13. ig-viral.
+
+Create a Skills Centre.
+
+Each skill must have:
+
+- Name.
+- Description.
+- Purpose.
+- Input fields.
+- Run button.
+- Output.
+- Preview.
+- Save result.
+- Execution history.
+
+Preserve licence and attribution.
+
+These skills do not automatically provide Instagram API access or publishing permissions.
+
+Do not use them to bypass Instagram security controls or restrictions.
+
+---
+
+# PART 16 — MONETIZATION AND BRAND CAMPAIGNS
+
+Create a Monetization Workspace.
+
+Include:
+
+- Brand collaboration tracker.
+- Sponsorship records.
+- Campaign records.
+- Revenue tracker.
+- Payment status.
+- Campaign status.
+- Notes.
+- Associated Instagram content.
+- Campaign performance where actual data exists.
+
+Do not claim Instagram monetization eligibility unless the information is verified through an authorized source.
+
+Do not promise revenue or monetization approval.
+
+Allow users to enter their own income and campaign information.
+
+---
+
+# PART 17 — MAIN DASHBOARD
+
+Create a premium dashboard.
+
+Show:
+
+- Instagram account information.
+- Connection status.
+- Total drafts.
+- Awaiting approval.
+- Scheduled posts.
+- Published posts.
+- Failed posts.
+- Upcoming posts.
+- Recent activity.
+- AI generation activity.
+- Active automations.
+- Media library summary.
+- Provider plan limits.
+- Recent publishing history.
+
+Every value must come from actual database records or verified APIs.
+
+Add useful empty states.
+
+Do not create fake statistics.
+
+---
+
+# PART 18 — USER AUTHENTICATION AND SETTINGS
+
+Build a secure application with:
+
+- Login.
+- Registration.
+- Logout.
+- Protected routes.
+- User settings.
+- Profile management.
+- API configuration status.
+- Theme settings.
+- Timezone settings.
+- Notification preferences.
+
+Use secure authentication and server-side sessions.
+
+Do not create a fake login that accepts every password.
+
+Do not expose user data across accounts.
+
+Keep all API credentials server-side.
+
+Do not add Firebase unless I explicitly approve it.
+
+Use an appropriate persistent data-storage solution compatible with this application and deployment environment. Prefer a genuinely available free tier, but do not pretend temporary container storage is permanent storage.
+
+If a required database or storage credential is unavailable, identify the exact secret needed. Continue implementing the parts that do not depend on it.
+
+---
+
+# PART 19 — ADVANCED WEBSITE DESIGN
+
+The website must look like a modern professional SaaS application.
+
+Design inspiration:
+
+- Buffer.
+- Later.
+- Post Planner.
+- Premium AI SaaS dashboards.
+
+Do not copy their branding, assets, or proprietary design.
+
+Use:
+
+- Professional light theme.
+- Optional dark theme.
+- White and soft-neutral backgrounds.
+- Elegant purple/blue accent colours.
+- Modern typography.
+- Responsive sidebar.
+- Clean cards.
+- Rounded buttons.
+- Subtle shadows.
+- Modern icons.
+- Smooth navigation.
+- Attractive empty states.
+- Professional graphs.
+- Consistent spacing.
+- Responsive layouts.
+
+Create these pages:
+
+1. Landing Page.
+2. Login.
+3. Registration.
+4. Dashboard.
+5. Instagram Accounts.
+6. AI Content Studio.
+7. Image Generator.
+8. Video/Reels Studio.
+9. Automation Centre.
+10. Content Calendar.
+11. Drafts.
+12. Media Library.
+13. Analytics.
+14. Inbox.
+15. Skills Centre.
+16. Monetization Workspace.
+17. Publishing History.
+18. Settings.
+
+The application must work on:
+
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile.
+
+Every page must use the same design system.
+
+Do not create inactive navigation links or decorative controls that do nothing.
+
+---
+
+# PART 20 — FREE OPEN-SOURCE DESIGN REPOSITORIES
+
+Inspect the following repositories and use compatible components selectively.
+
+### Primary UI library
+https://github.com/shadcn-ui/ui
+
+### Dashboard and landing page template
+https://github.com/shadcnstore/shadcn-dashboard-landing-template
+
+### Alternative dashboard
+https://github.com/shadcndashboard/shadcndashboard
+
+### Additional Next.js dashboard
+https://github.com/shadcndashboard/next-shadcn-dashboard
+
+### Charts
+https://github.com/recharts/recharts
+
+### Calendar
+https://github.com/fullcalendar/fullcalendar-react
+
+Instructions:
+
+1. Check whether each repository is accessible.
+2. Check its current licence.
+3. Check framework compatibility.
+4. Check React and package versions.
+5. Check peer dependencies.
+6. Reuse components selectively.
+7. Prefer MIT-licensed components.
+8. Do not install multiple complete dashboard templates.
+9. Do not replace the application's backend with a template.
+10. Avoid unnecessary dependencies.
+11. Run a production build after installation.
+
+The shadcn/ui library should be considered as the primary component system if compatible.
+
+Do not install an incompatible version of FullCalendar. Check its current React integration and package version before use.
+
+The project architecture and successful build take priority over adding more templates.
+
+---
+
+# PART 21 — TECHNICAL ARCHITECTURE
+
+Use Google AI Studio Build mode's full-stack web application environment.
+
+Preferred structure:
+
+Frontend:
+- React.
+- TypeScript.
+- Responsive components.
+- Modern styling.
+- Component-based architecture.
+
+Backend:
+- Node.js.
+- TypeScript.
+- Secure API routes.
+- Server-side integrations.
+- Input validation.
+- Error handling.
+
+AI:
+- Gemini API.
+- Server-side Gemini integration.
+- Supported image generation.
+- Supported video generation where available.
+
+Publishing:
+- Publora REST API.
+- Server-side API proxy.
+- Provider status reconciliation.
+
+Storage:
+- Persistent media storage.
+- Persistent database.
+- Secure user data access.
+
+Do not place Publora or Gemini keys in frontend code.
+
+Do not expose private API routes.
+
+Do not use browser-side Publora API calls.
+
+Do not hardcode fake accounts, posts, analytics, or API responses.
+
+Use environment variables and protected secrets.
+
+Keep code clean, modular, maintainable, and type-safe.
+
+Do not unnecessarily add complex infrastructure.
+
+---
+
+# PART 22 — PUBLORA API IMPLEMENTATION
+
+Read the official documentation before implementation:
+
+https://docs.publora.com/
+
+Use the documented API methods for:
+
+- Connected platform account retrieval.
+- Connection testing.
+- Creating posts.
+- Scheduling posts.
+- Listing posts.
+- Retrieving individual posts.
+- Updating posts.
+- Deleting posts.
+- Retrieving post logs.
+- Media uploads.
+- Webhooks where supported.
+
+Relevant endpoint references include:
+
+GET /platform-connections
+
+POST /test-connection
+
+POST /create-post
+
+GET /list-posts
+
+GET /get-post
+
+POST /update-post
+
+POST /delete-post
+
+Use the exact method, parameters, headers, and response structures from current official documentation. Do not guess endpoint formats.
+
+Use:
+
+https://api.publora.com/api/v1
+
+Authentication header:
+
+x-publora-key: server-side secret
+
+Use an Idempotency-Key when supported.
+
+Store provider post IDs and track actual statuses.
+
+Handle:
+
+- Authentication errors.
+- Rate limits.
+- Invalid accounts.
+- Unsupported media.
+- Expired authorization.
+- Provider errors.
+- Network timeouts.
+- Duplicate submissions.
+
+Use retries only when safe.
+
+Support Instagram only in the product interface, even though the Publora API supports additional platforms.
+
+## Publora plan limits
+
+Inspect the account's actual plan and current provider limits.
+
+Do not assume unlimited free publishing.
+
+The current documentation describes a free Starter plan with limited monthly posts, connected accounts, concurrent scheduled posts, scheduling horizon, and video size. Treat the current official documentation and account response as authoritative.
+
+Display the actual limits where available.
+
+Do not bypass any limit.
+
+---
+
+# PART 23 — BACKEND AUTOMATION AND SCHEDULING
+
+Recurring automations must work when the user closes the browser.
+
+Implement a reliable server-side scheduler or background job mechanism suitable for the actual deployment.
+
+Requirements:
+
+- Persistent job records.
+- Timezone-aware scheduling.
+- Next execution time.
+- Last execution time.
+- Job status.
+- Execution logs.
+- Retry policy.
+- Duplicate prevention.
+- Failure information.
+- Pause/resume.
+- Safe publishing checks.
+
+Do not use setInterval or a browser timer as the only scheduler.
+
+Do not claim recurring automation works unless the deployed backend actually executes it.
+
+If the chosen deployment environment requires an additional scheduler or service, identify the cost and a genuinely available free alternative. Do not silently add paid infrastructure.
+
+---
+
+# PART 24 — SECURITY REQUIREMENTS
+
+Security is mandatory.
+
+Implement:
+
+- Protected server-side secrets.
+- Secure authentication.
+- Owner-only access.
+- Secure sessions.
+- Request validation.
+- File validation.
+- Rate limiting.
+- Safe database queries.
+- Proper authorization.
+- Error handling.
+- No hardcoded credentials.
+- No leaked secrets.
+- No Instagram password collection.
+
+Never expose:
+
+- PUBLORA_API_KEY.
+- GEMINI_API_KEY.
+- Database credentials.
+- Session secrets.
+
+Do not print secret values in logs.
+
+Do not include API keys in downloadable source code.
+
+---
+
+# PART 25 — TESTING AND ERROR FIXING
+
+Do not stop when the user interface looks complete.
+
+You must run and verify the real application.
+
+Required checks:
+
+1. Dependency installation.
+2. Server startup.
+3. Frontend build.
+4. TypeScript validation.
+5. Lint validation.
+6. Database connectivity.
+7. Database persistence.
+8. Authentication.
+9. Protected routes.
+10. Publora API authentication.
+11. Instagram account retrieval.
+12. Real connection status.
+13. Gemini text generation.
+14. Image generation, if available.
+15. Video generation, if available.
+16. Media upload.
+17. Media preview.
+18. Media deletion.
+19. Draft creation.
+20. Draft editing.
+21. Calendar operations.
+22. Server-side automation.
+23. Duplicate execution prevention.
+24. Publishing approval workflow.
+25. Publishing status retrieval.
+26. Error handling.
+27. Mobile responsiveness.
+28. Production build.
+29. Production deployment.
+30. Live website verification.
+
+Fix every reproducible error you discover.
+
+Do not disable tests to make the build pass.
+
+Do not hide TypeScript errors.
+
+Do not replace failed integrations with mock data.
+
+Do not use fake API responses in production.
+
+If an external feature cannot be verified because permissions or credentials are missing, report the specific limitation.
+
+Do not publish a real Instagram post during testing without my explicit approval.
+
+---
+
+# PART 26 — DEPLOYMENT
+
+Deploy the completed project using Google AI Studio's supported deployment process.
+
+Before deployment:
+
+- Verify build.
+- Verify backend.
+- Verify database.
+- Verify secrets.
+- Verify routing.
+- Verify authentication.
+- Verify API endpoints.
+- Verify media upload.
+- Verify Publora account retrieval.
+- Check errors.
+- Check browser console.
+- Check server logs.
+
+After deployment:
+
+- Open the actual public website.
+- Confirm AutoSocial AI branding.
+- Confirm the landing page loads.
+- Confirm navigation works.
+- Confirm login and protected pages work.
+- Confirm backend endpoints work.
+- Confirm the Publora connection is retrieved from the backend.
+- Confirm the responsive layout.
+- Confirm there are no critical console errors.
+
+Do not claim deployment is successful based only on a build or health-check response.
+
+Provide the actual deployed website URL.
+
+---
+
+# PART 27 — FINAL REQUIREMENTS
+
+I want the final deliverable to be a complete AutoSocial AI website.
+
+At the end, provide:
+
+1. Public website URL.
+2. Complete working application.
+3. Complete source code.
+4. Downloadable source ZIP.
+5. Database and storage setup details.
+6. Publora integration status.
+7. Gemini integration status.
+8. Completed feature list.
+9. Successfully tested feature list.
+10. Remaining external API limitations.
+11. Current free-tier limitations.
+12. Deployment verification results.
+
+Do not finish with only an explanation or plan.
+
+Build the website.
+
+Test the website.
+
+Fix the errors.
+
+Deploy the website.
+
+---
+
+# PART 28 — HOW YOU MUST WORK
+
+Follow these implementation phases internally:
+
+PHASE 1:
+Understand this specification and establish the application architecture.
+
+PHASE 2:
+Create the complete responsive UI and design system.
+
+PHASE 3:
+Implement backend, authentication, persistence, and protected secrets.
+
+PHASE 4:
+Implement Gemini text generation.
+
+PHASE 5:
+Implement real Publora account retrieval and publishing integration.
+
+PHASE 6:
+Implement media management, image generation, and the video/Reels workflow.
+
+PHASE 7:
+Implement calendar, drafts, and approved automatic publishing.
+
+PHASE 8:
+Implement recurring backend automations.
+
+PHASE 9:
+Implement analytics, inbox, skills, and monetization features where genuine APIs and permissions exist.
+
+PHASE 10:
+Run full tests, fix errors, and verify the deployed website.
+
+Do not ask me unnecessary questions.
+
+The one required credential request is my Publora API key through the protected secret setting:
+
+PUBLORA_API_KEY
+
+Use Google AI Studio's automatically configured Gemini key wherever available.
+
+If another credential or service is genuinely essential, explain exactly why and request only that missing item. Continue all independent development work instead of stopping.
+
+Do not invent functionality.
+
+Do not fabricate data.
+
+Do not promise unlimited free services.
+
+Do not publish unapproved content.
+
+Do not replace Publora.
+
+Do not add other social platforms.
+
+**FINAL COMMAND: BUILD AND COMPLETE AUTOSOCIAL AI AS A PROFESSIONAL, FULLY FUNCTIONAL INSTAGRAM AUTOMATION PLATFORM. IMPLEMENT THE ACTUAL FEATURES, VERIFY THE INTEGRATIONS, FIX THE ERRORS YOU FIND, AND DEPLOY THE FINISHED APPLICATION.**
